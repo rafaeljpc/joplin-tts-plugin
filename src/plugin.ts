@@ -103,6 +103,16 @@ export async function registerSettings(): Promise<void> {
 			value: DEFAULT_SETTINGS.readTitle,
 			label: 'Read the note title first',
 		},
+		[settingKey('piperCatalogUrl')]: {
+			section: SETTINGS_SECTION,
+			public: true,
+			advanced: true,
+			type: SettingItemType.String,
+			value: DEFAULT_SETTINGS.piperCatalogUrl,
+			label: 'Piper voices URL',
+			description:
+				'Where the offline Piper voices are downloaded from. Only change it if the default stops working.',
+		},
 	});
 }
 

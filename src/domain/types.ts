@@ -37,4 +37,6 @@ export interface Settings {
 	/** Language code (e.g. pt-BR) used by the online engines. */
 	language: string;
 	readTitle: boolean;
+	/** Where the Piper voices are downloaded from (see piperCatalog.ts). */
+	piperCatalogUrl: string;
 }

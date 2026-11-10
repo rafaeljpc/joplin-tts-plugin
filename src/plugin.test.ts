@@ -59,6 +59,7 @@ describe('registerSettings / readSettings', () => {
 			'tts.azureRegion',
 			'tts.language',
 			'tts.readTitle',
+			'tts.piperCatalogUrl',
 		]);
 		expect(settings['tts.googleApiKey'].secure).toBe(true);
 		expect(settings['tts.azureApiKey'].secure).toBe(true);

@@ -41,6 +41,7 @@ describe('settings', () => {
 				googleApiKey: '  key  ',
 				language: ' pt-BR ',
 				readTitle: false,
+				piperCatalogUrl: ' https://example.com/voices ',
 			}),
 		).toEqual({
 			engine: 'azure',
@@ -51,6 +52,7 @@ describe('settings', () => {
 			googleApiKey: 'key',
 			language: 'pt-BR',
 			readTitle: false,
+			piperCatalogUrl: 'https://example.com/voices/',
 		});
 	});
 
@@ -60,11 +62,13 @@ describe('settings', () => {
 			googleApiKey: 5,
 			language: '  ',
 			readTitle: 0,
+			piperCatalogUrl: 'not a url',
 		});
 		expect(result.voice).toBe('');
 		expect(result.googleApiKey).toBe('');
 		expect(result.language).toBe(DEFAULT_SETTINGS.language);
 		expect(result.readTitle).toBe(false);
+		expect(result.piperCatalogUrl).toBe(DEFAULT_SETTINGS.piperCatalogUrl);
 	});
 
 	it('namespaces keys', () => {

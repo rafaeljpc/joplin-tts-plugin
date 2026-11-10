@@ -1,3 +1,4 @@
+import { DEFAULT_PIPER_CATALOG_URL, normalizeCatalogUrl } from './piperCatalog';
 import { EngineId, Settings } from './types';
 
 export const SETTINGS_SECTION = 'ttsPlugin';
@@ -11,6 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	azureRegion: 'eastus',
 	language: 'en-US',
 	readTitle: true,
+	piperCatalogUrl: DEFAULT_PIPER_CATALOG_URL,
 };
 
 export const MIN_RATE = 0.5;
@@ -41,6 +43,7 @@ export const normalizeSettings = (raw: Partial<Record<keyof Settings, unknown>>)
 	azureRegion: trimmed(raw.azureRegion, DEFAULT_SETTINGS.azureRegion),
 	language: trimmed(raw.language, DEFAULT_SETTINGS.language),
 	readTitle: raw.readTitle === undefined ? DEFAULT_SETTINGS.readTitle : Boolean(raw.readTitle),
+	piperCatalogUrl: normalizeCatalogUrl(raw.piperCatalogUrl),
 });
 
 /** Prefix used for every setting key so they never clash with other plugins. */
