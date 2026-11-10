@@ -15,10 +15,10 @@ The **Joplin Text-to-Speech** section under _Tools → Options_. All keys use th
 
 ## Commands
 
-| Command        | Label              | Where it appears                           |
-| -------------- | ------------------ | ------------------------------------------ |
-| `tts.readNote` | Read note aloud    | Note toolbar, Tools menu, `Ctrl/Cmd+Alt+R` |
-| `tts.stop`     | Stop reading aloud | Command palette                            |
+| Command        | Label                            | Where it appears                           |
+| -------------- | -------------------------------- | ------------------------------------------ |
+| `tts.readNote` | Joplin Text-to-Speech: read note | Note toolbar, Tools menu, `Ctrl/Cmd+Alt+R` |
+| `tts.stop`     | Joplin Text-to-Speech: stop      | Command palette                            |
 
 ## Security and privacy
 

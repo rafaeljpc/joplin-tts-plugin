@@ -1,5 +1,5 @@
 const en = {
-	title: 'Read aloud',
+	title: 'Text-to-Speech',
 	play: 'Play',
 	pause: 'Pause',
 	previous: 'Previous sentence',

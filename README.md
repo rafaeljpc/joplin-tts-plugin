@@ -11,7 +11,7 @@ Reads the open note aloud, **sentence by sentence**, with a player panel: voice 
 
 ## Features
 
-- 🔊 Button in the note toolbar and above the editor, **Tools → Read note aloud** menu item and `Ctrl/Cmd+Alt+R`.
+- 🔊 Button in the note toolbar and above the editor, **Tools → Joplin Text-to-Speech: read note** menu item and `Ctrl/Cmd+Alt+R`.
 - Player panel with voice picker, speed (0.75×–2×), progress ("Sentence 3 of 8") and the current sentence.
 - Four speech engines (pick one in the settings):
   - **System voices** (Web Speech API) — offline, free.

@@ -161,7 +161,7 @@ export async function start(): Promise<void> {
 
 	await joplin.commands.register({
 		name: COMMAND_READ,
-		label: 'Read note aloud',
+		label: 'Joplin Text-to-Speech: read note',
 		iconName: 'fas fa-volume-up',
 		execute: async () => {
 			await joplin.views.panels.show(panel, true);
@@ -172,7 +172,7 @@ export async function start(): Promise<void> {
 
 	await joplin.commands.register({
 		name: COMMAND_STOP,
-		label: 'Stop reading aloud',
+		label: 'Joplin Text-to-Speech: stop',
 		iconName: 'fas fa-stop',
 		execute: async () => {
 			await send({ type: 'stop' });
