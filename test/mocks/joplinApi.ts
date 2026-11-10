@@ -2,7 +2,7 @@
 const fn = () => jest.fn();
 
 const joplin = {
-	plugins: { register: fn() },
+	plugins: { register: fn(), dataDir: fn() },
 	settings: {
 		registerSection: fn(),
 		registerSettings: fn(),

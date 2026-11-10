@@ -1,4 +1,4 @@
-export type EngineId = 'webspeech' | 'google-translate' | 'google-cloud' | 'azure';
+export type EngineId = 'webspeech' | 'google-translate' | 'google-cloud' | 'azure' | 'piper';
 
 export interface Voice {
 	/** Stable identifier (voiceURI for Web Speech, voice name for Google). */

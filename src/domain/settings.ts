@@ -24,7 +24,7 @@ export const clampRate = (rate: unknown): number => {
 	return Math.min(MAX_RATE, Math.max(MIN_RATE, n));
 };
 
-const ENGINES: EngineId[] = ['webspeech', 'google-translate', 'google-cloud', 'azure'];
+const ENGINES: EngineId[] = ['webspeech', 'google-translate', 'google-cloud', 'azure', 'piper'];
 
 export const normalizeEngine = (engine: unknown): EngineId =>
 	ENGINES.find((id) => id === engine) ?? 'webspeech';
