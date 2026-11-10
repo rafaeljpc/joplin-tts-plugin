@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - name: Check tag matches manifest version
+        run: |
+          manifest=$(node -p "require('./src/manifest.json').version")
+          pkg=$(node -p "require('./package.json').version")
+          tag="${GITHUB_REF_NAME#v}"
+          [ "$manifest" = "$tag" ] && [ "$pkg" = "$tag" ] || { echo "Version mismatch: tag=$tag manifest=$manifest package=$pkg"; exit 1; }
+      - run: npm run dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: publish/*.jpl
+          generate_release_notes: true

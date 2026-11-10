@@ -1,0 +1,12 @@
+/api
+/src
+/test
+/doc
+/dist
+/coverage
+/.github
+tsconfig.json
+webpack.config.js
+jest.config.js
+eslint.config.mjs
+GENERATOR_DOC.md

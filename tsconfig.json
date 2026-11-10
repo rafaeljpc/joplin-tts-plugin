@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist/",
+    "module": "commonjs",
+    "target": "es2019",
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "api": ["api"],
+      "api/*": ["api/*"]
+    },
+    "types": ["node", "jest"]
+  },
+  "include": ["src", "test", "api"]
+}

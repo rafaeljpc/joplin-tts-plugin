@@ -1,0 +1,7 @@
+dist/
+node_modules/
+publish/
+coverage/
+*.jpl
+*.tgz
+.DS_Store
