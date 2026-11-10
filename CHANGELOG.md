@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-10
+
 ### Added
 
 - Reading speeds 2.5× and 3× in the player.
