@@ -24,6 +24,7 @@ const joplin = {
 		menuItems: { create: fn() },
 	},
 	commands: { register: fn() },
+	contentScripts: { register: fn(), onMessage: fn() },
 	workspace: { selectedNote: fn(), onNoteSelectionChange: fn() },
 };
 

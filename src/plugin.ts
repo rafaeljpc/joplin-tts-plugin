@@ -1,7 +1,12 @@
 import joplin from 'api';
-import { MenuItemLocation, SettingItemType, ToolbarButtonLocation } from 'api/types';
-import { markdownToPlainText } from './lib/markdown';
-import { noteToSentences } from './lib/sentences';
+import {
+	ContentScriptType,
+	MenuItemLocation,
+	SettingItemType,
+	ToolbarButtonLocation,
+} from 'api/types';
+import { EDITOR_SCRIPT_ID, VIEWER_SCRIPT_ID } from './lib/ids';
+import { Interaction, parseInteraction, planReading } from './lib/plan';
 import {
 	DEFAULT_SETTINGS,
 	normalizeSettings,
@@ -117,17 +122,34 @@ export async function start(): Promise<void> {
 
 	let panelReady = false;
 	let pendingAutoplay: boolean | null = null;
+	// Last cursor / selection reported by the editor or the viewer (latest wins).
+	let interaction: Interaction | null = null;
+
+	await joplin.contentScripts.register(
+		ContentScriptType.CodeMirrorPlugin,
+		EDITOR_SCRIPT_ID,
+		'./editorContentScript.js',
+	);
+	await joplin.contentScripts.register(
+		ContentScriptType.MarkdownItPlugin,
+		VIEWER_SCRIPT_ID,
+		'./viewerContentScript.js',
+	);
+	const track = async (message: unknown) => {
+		interaction = parseInteraction(message) ?? interaction;
+	};
+	await joplin.contentScripts.onMessage(EDITOR_SCRIPT_ID, track);
+	await joplin.contentScripts.onMessage(VIEWER_SCRIPT_ID, track);
 
 	const send = (message: PluginToPanelMessage) => joplin.views.panels.postMessage(panel, message);
 
 	const loadSelectedNote = async (autoplay: boolean) => {
 		const note = await joplin.workspace.selectedNote();
 		const settings = await readSettings();
-		const body = note ? markdownToPlainText(note.body ?? '') : '';
-		const sentences = note
-			? noteToSentences(note.title ?? '', body, settings.readTitle, settings.language)
-			: [];
-		await send({ type: 'load', title: note?.title ?? '', sentences, autoplay });
+		const { sentences, startIndex } = note
+			? planReading({ title: note.title ?? '', body: note.body ?? '' }, settings, interaction)
+			: { sentences: [], startIndex: 0 };
+		await send({ type: 'load', title: note?.title ?? '', sentences, startIndex, autoplay });
 	};
 
 	await joplin.views.panels.onMessage(panel, async (message: PanelToPluginMessage) => {
@@ -203,6 +225,8 @@ export async function start(): Promise<void> {
 	// Switching notes while the panel is open: stop and load the new note
 	// (without autoplay, so audio never starts unexpectedly).
 	await joplin.workspace.onNoteSelectionChange(async () => {
+		// A cursor or selection belongs to the previous note.
+		interaction = null;
 		if (!panelReady || !(await joplin.views.panels.visible(panel))) return;
 		await loadSelectedNote(false);
 	});

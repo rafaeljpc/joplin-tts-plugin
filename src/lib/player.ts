@@ -62,10 +62,10 @@ export class PlayerController {
 		this.emit();
 	}
 
-	load(sentences: string[]): void {
+	load(sentences: string[], startIndex = 0): void {
 		this.halt();
 		this.sentences = [...sentences];
-		this.index = 0;
+		this.index = Math.min(Math.max(0, startIndex), Math.max(0, sentences.length - 1));
 		this.status = 'idle';
 		this.emit();
 	}

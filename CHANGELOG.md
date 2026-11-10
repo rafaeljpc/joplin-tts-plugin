@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Added
+
+- In the Markdown editor, reading starts at the sentence under the cursor.
+- If text is selected in the editor or the rendered viewer, only that selection is read.
+
 ## [0.1.0] - Unreleased
 
 ### Added

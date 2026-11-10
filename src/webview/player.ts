@@ -245,7 +245,7 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 			case 'load':
 				title = message.title;
 				showError(null);
-				controller.load(message.sentences);
+				controller.load(message.sentences, message.startIndex);
 				if (message.autoplay) controller.play();
 				break;
 			case 'stop':

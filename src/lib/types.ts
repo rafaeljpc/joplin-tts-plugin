@@ -38,7 +38,14 @@ export interface Settings {
 export type PluginToPanelMessage =
 	| { type: 'init'; settings: Settings }
 	| { type: 'settings'; settings: Settings }
-	| { type: 'load'; title: string; sentences: string[]; autoplay: boolean }
+	| {
+			type: 'load';
+			title: string;
+			sentences: string[];
+			/** Sentence where reading starts (the one at the editor cursor). */
+			startIndex: number;
+			autoplay: boolean;
+	  }
 	| { type: 'stop' };
 
 /** Messages sent from the panel webview to the plugin. */

@@ -19,6 +19,7 @@ const j = joplin as unknown as {
 		menuItems: Record<string, jest.Mock>;
 	};
 	commands: Record<string, jest.Mock>;
+	contentScripts: Record<string, jest.Mock>;
 	workspace: Record<string, jest.Mock>;
 	plugins: Record<string, jest.Mock>;
 };
@@ -118,6 +119,7 @@ describe('start', () => {
 			type: 'load',
 			title: 'My note',
 			sentences: ['My note.', 'Heading', 'Hello world.', 'Bye.'],
+			startIndex: 0,
 			autoplay: true,
 		});
 	});
@@ -148,7 +150,69 @@ describe('start', () => {
 		await start();
 		await messageHandler()({ type: 'ready' });
 		await messageHandler()({ type: 'reload' });
-		expect(sent().at(-1)).toEqual({ type: 'load', title: '', sentences: [], autoplay: false });
+		expect(sent().at(-1)).toEqual({
+			type: 'load',
+			title: '',
+			sentences: [],
+			startIndex: 0,
+			autoplay: false,
+		});
+	});
+
+	describe('cursor and selection', () => {
+		const handler = (id: string) =>
+			(
+				j.contentScripts.onMessage.mock.calls.find((c) => c[0] === id) as [
+					string,
+					(m: unknown) => Promise<void>,
+				]
+			)[1];
+
+		it('registers the editor and viewer content scripts', async () => {
+			await start();
+			expect(j.contentScripts.register).toHaveBeenCalledWith(
+				'codeMirrorPlugin',
+				'tts.editor',
+				'./editorContentScript.js',
+			);
+			expect(j.contentScripts.register).toHaveBeenCalledWith(
+				'markdownItPlugin',
+				'tts.viewer',
+				'./viewerContentScript.js',
+			);
+		});
+
+		it('starts at the editor cursor', async () => {
+			await start();
+			await handler('tts.editor')({
+				source: 'editor',
+				cursor: { line: 2, column: 20 },
+				selection: '',
+			});
+			await messageHandler()({ type: 'ready' });
+			await messageHandler()({ type: 'reload' });
+			expect(sent().at(-1)).toMatchObject({ startIndex: 3 });
+		});
+
+		it('reads only the selection made in the viewer, ignoring invalid messages', async () => {
+			await start();
+			await handler('tts.viewer')({ source: 'viewer', selection: 'Just this.' });
+			await handler('tts.viewer')('garbage');
+			await messageHandler()({ type: 'ready' });
+			await messageHandler()({ type: 'reload' });
+			expect(sent().at(-1)).toMatchObject({ sentences: ['Just this.'], startIndex: 0 });
+		});
+
+		it('forgets the cursor when another note is selected', async () => {
+			await start();
+			await handler('tts.viewer')({ source: 'viewer', selection: 'Just this.' });
+			await messageHandler()({ type: 'ready' });
+			const changed = j.workspace.onNoteSelectionChange.mock.calls[0][0] as () => Promise<void>;
+			await changed();
+			expect(sent().at(-1)).toMatchObject({
+				sentences: ['My note.', 'Heading', 'Hello world.', 'Bye.'],
+			});
+		});
 	});
 
 	it('handles a note without title or body', async () => {
