@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Changed
+
+- Release automation: merging a new version into `main` creates the tag and publishes the GitHub release with the `.jpl`; the notes come from this changelog.
+
 ## [0.2.0] - 2026-11-10
 
 ### Added
