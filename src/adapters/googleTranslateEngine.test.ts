@@ -84,3 +84,34 @@ describe('GoogleTranslateEngine', () => {
 		await expect(promise).rejects.toThrow('Audio playback failed');
 	});
 });
+
+describe('GoogleTranslateEngine prefetch', () => {
+	it('preloads the next sentence once and plays that same audio element', async () => {
+		const { engine, created, end } = setup();
+		engine.prefetch('Next one.', { voiceId: '', rate: 1 });
+		engine.prefetch('Next one.', { voiceId: '', rate: 1 });
+		expect(created).toHaveLength(1);
+		expect(created[0].audio.preload).toBe('auto');
+		expect(new URL(created[0].src).searchParams.get('tl')).toBe('pt-BR');
+
+		const speaking = engine.speak('Next one.', { voiceId: '', rate: 2 });
+		await tick();
+		expect(created).toHaveLength(1);
+		expect(created[0].audio.playbackRate).toBe(2);
+		expect(created[0].audio.play).toHaveBeenCalled();
+		end(0);
+		await speaking;
+	});
+
+	it('ignores a preload that does not match, and empty text', async () => {
+		const { engine, created, end } = setup();
+		engine.prefetch('', { voiceId: 'en', rate: 1 });
+		expect(created).toHaveLength(0);
+		engine.prefetch('Other.', { voiceId: 'en', rate: 1 });
+		const speaking = engine.speak('Different.', { voiceId: 'en', rate: 1 });
+		await tick();
+		expect(created).toHaveLength(2);
+		end(1);
+		await speaking;
+	});
+});

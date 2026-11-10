@@ -1,4 +1,5 @@
 import { AudioSlot, CreateAudio } from './audioSlot';
+import { PrefetchCache } from './prefetchCache';
 import { SpeakOptions, TtsEngine, Voice } from '../domain/types';
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
@@ -34,6 +35,7 @@ export class AzureSpeechEngine implements TtsEngine {
 	private slot: AudioSlot;
 	private generation = 0;
 	private voices: Promise<Voice[]> | null = null;
+	private cache = new PrefetchCache<Blob>();
 
 	constructor(private options: AzureOptions) {
 		this.slot = new AudioSlot(options.createAudio);
@@ -53,6 +55,27 @@ export class AzureSpeechEngine implements TtsEngine {
 
 	async speak(text: string, { voiceId, rate }: SpeakOptions): Promise<void> {
 		const generation = this.generation;
+		const blob = await this.cache.take(`${voiceId}|${text}`, () => this.synthesize(text, voiceId));
+		// A cancel that arrived while the request was in flight must win.
+		if (generation !== this.generation) return;
+		const url = this.options.createObjectUrl(blob);
+		try {
+			await this.slot.play(url, rate);
+		} finally {
+			this.options.revokeObjectUrl(url);
+		}
+	}
+
+	prefetch(text: string, { voiceId }: SpeakOptions): void {
+		this.cache.prefetch(`${voiceId}|${text}`, () => this.synthesize(text, voiceId));
+	}
+
+	cancel(): void {
+		this.generation++;
+		this.slot.cancel();
+	}
+
+	private async synthesize(text: string, voiceId: string): Promise<Blob> {
 		const voice = voiceId || (await this.defaultVoice());
 		const locale = /^([a-z]{2,3}-[A-Za-z0-9]+)-/.exec(voice)?.[1] ?? this.options.languageCode;
 		const ssml = `<speak version='1.0' xml:lang='${escapeXml(locale)}'><voice name='${escapeXml(voice)}'>${escapeXml(text)}</voice></speak>`;
@@ -66,20 +89,7 @@ export class AzureSpeechEngine implements TtsEngine {
 			body: ssml,
 		});
 		if (!response.ok) throw new Error(`Azure TTS error ${response.status}`);
-		const blob = await response.blob();
-		// A cancel that arrived while the request was in flight must win.
-		if (generation !== this.generation) return;
-		const url = this.options.createObjectUrl(blob);
-		try {
-			await this.slot.play(url, rate);
-		} finally {
-			this.options.revokeObjectUrl(url);
-		}
-	}
-
-	cancel(): void {
-		this.generation++;
-		this.slot.cancel();
+		return response.blob();
 	}
 
 	private async fetchVoices(): Promise<Voice[]> {

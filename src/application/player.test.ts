@@ -5,6 +5,7 @@ class FakeEngine implements TtsEngine {
 	spoken: { text: string; options: SpeakOptions }[] = [];
 	pending: { resolve: () => void; reject: (e: unknown) => void }[] = [];
 	cancels = 0;
+	prefetched: { text: string; options: SpeakOptions }[] = [];
 	voices: Voice[] = [{ id: 'a', name: 'A', lang: 'en' }];
 
 	async listVoices() {
@@ -16,6 +17,9 @@ class FakeEngine implements TtsEngine {
 	}
 	cancel() {
 		this.cancels++;
+	}
+	prefetch(text: string, options: SpeakOptions) {
+		this.prefetched.push({ text, options });
 	}
 	finish(i = this.pending.length - 1) {
 		this.pending[i].resolve();
@@ -51,6 +55,28 @@ describe('PlayerController', () => {
 		expect(player.getState().index).toBe(0);
 		player.load([], 3);
 		expect(player.getState().index).toBe(0);
+	});
+
+	it('asks the engine to prefetch the sentence that follows the one being spoken', async () => {
+		const { player, engine } = setup();
+		player.setRate(1.5);
+		player.play();
+		expect(engine.prefetched.map((p) => p.text)).toEqual(['two']);
+		expect(engine.prefetched[0].options.rate).toBe(1.5);
+		engine.finish();
+		await flush();
+		expect(engine.prefetched.map((p) => p.text)).toEqual(['two', 'three']);
+		engine.finish();
+		await flush();
+		// The last sentence has nothing after it.
+		expect(engine.prefetched).toHaveLength(2);
+	});
+
+	it('works with engines that cannot prefetch', () => {
+		const { player, engine } = setup();
+		(engine as { prefetch?: unknown }).prefetch = undefined;
+		player.play();
+		expect(engine.spoken).toHaveLength(1);
 	});
 
 	it('does nothing when there is nothing to play', () => {

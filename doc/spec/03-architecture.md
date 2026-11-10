@@ -55,10 +55,11 @@ interface TtsEngine {
   listVoices(): Promise<Voice[]>;
   speak(text: string, options: { voiceId: string; rate: number }): Promise<void>;
   cancel(): void;
+  prefetch?(text: string, options: { voiceId: string; rate: number }): void; // optional hint
 }
 ```
 
-An engine speaks **one sentence at a time**. `speak` resolves when the sentence ends **or is cancelled** and only rejects on a real failure. The original idea also included `pause()`, `resume()` and `setRate()`; the implementation opted for a smaller contract (see "Pause" below).
+An engine speaks **one sentence at a time**. `speak` resolves when the sentence ends **or is cancelled** and only rejects on a real failure. `prefetch` is an optional hint: while a sentence plays, `PlayerController` tells the engine which sentence comes next, so the online engines can fetch its audio in the background (Azure and Google Cloud keep the result in a one-entry `PrefetchCache`; Google Translate preloads the audio element). If the background attempt fails, the engine simply fetches again when the sentence is due. The original idea also included `pause()`, `resume()` and `setRate()`; the implementation opted for a smaller contract (see "Pause" below).
 
 ## `PlayerController`
 

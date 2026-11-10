@@ -78,9 +78,21 @@ export class GoogleTranslateEngine implements TtsEngine {
 		const language = voiceId || this.options.languageCode;
 		for (const chunk of chunkText(text, MAX_CHARS)) {
 			if (generation !== this.generation) return;
-			const query = `ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(language)}&q=${encodeURIComponent(chunk)}`;
-			await this.slot.play(`${ENDPOINT}?${query}`, rate);
+			await this.slot.play(this.url(language, chunk), rate);
 		}
+	}
+
+	/** Preloads the first chunk of the next sentence; the rest follows quickly. */
+	prefetch(text: string, { voiceId }: SpeakOptions): void {
+		const [first] = chunkText(text, MAX_CHARS);
+		if (first !== undefined) {
+			this.slot.preload(this.url(voiceId || this.options.languageCode, first));
+		}
+	}
+
+	private url(language: string, chunk: string): string {
+		const query = `ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(language)}&q=${encodeURIComponent(chunk)}`;
+		return `${ENDPOINT}?${query}`;
 	}
 
 	cancel(): void {

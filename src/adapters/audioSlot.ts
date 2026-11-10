@@ -1,6 +1,7 @@
 export interface AudioLike {
 	playbackRate: number;
 	preservesPitch?: boolean;
+	preload?: string;
 	onended: HTMLMediaElement['onended'];
 	onerror: HTMLMediaElement['onerror'];
 	play(): Promise<void> | void;
@@ -16,12 +17,21 @@ export type CreateAudio = (src: string) => AudioLike;
 export class AudioSlot {
 	private current: AudioLike | null = null;
 	private cancelCurrent: (() => void) | null = null;
+	private preloaded: { src: string; audio: AudioLike } | null = null;
 
 	constructor(private createAudio: CreateAudio) {}
 
+	/** Starts loading `src` so a later `play(src)` starts without waiting. */
+	preload(src: string): void {
+		if (this.preloaded?.src === src) return;
+		const audio = this.createAudio(src);
+		audio.preload = 'auto';
+		this.preloaded = { src, audio };
+	}
+
 	play(src: string, rate: number): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
-			const audio = this.createAudio(src);
+			const audio = this.takePreloaded(src) ?? this.createAudio(src);
 			audio.playbackRate = rate;
 			audio.preservesPitch = true;
 			audio.onended = () => this.finish(audio, resolve);
@@ -36,6 +46,12 @@ export class AudioSlot {
 
 	cancel(): void {
 		this.cancelCurrent?.();
+	}
+
+	private takePreloaded(src: string): AudioLike | null {
+		const hit = this.preloaded?.src === src ? this.preloaded.audio : null;
+		if (hit) this.preloaded = null;
+		return hit;
 	}
 
 	private finish(audio: AudioLike, done: () => void): void {
