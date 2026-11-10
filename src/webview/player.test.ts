@@ -197,6 +197,26 @@ describe('initPlayer', () => {
 		expect(q<HTMLSelectElement>('.tts-rate').value).toBe('1.1');
 	});
 
+	it('reports the sentence being read so the note can highlight it', async () => {
+		const { send, q, posted } = setup();
+		await send({ type: 'init', settings: settings() });
+		const progress = () => posted.filter((m) => (m as { type: string }).type === 'progress');
+		await send({
+			type: 'load',
+			title: 'n',
+			sentences: ['One.', 'Two.'],
+			startIndex: 1,
+			autoplay: true,
+		});
+		expect(progress()).toEqual([{ type: 'progress', index: 1 }]);
+		q<HTMLButtonElement>('.tts-play').click();
+		expect(progress()).toHaveLength(1);
+		q<HTMLButtonElement>('.tts-prev').click();
+		expect(progress().at(-1)).toEqual({ type: 'progress', index: 0 });
+		q<HTMLButtonElement>('.tts-stop').click();
+		expect(progress().at(-1)).toEqual({ type: 'progress', index: null });
+	});
+
 	it('asks the plugin for a fresh plan when play is pressed while idle', async () => {
 		const { send, q, posted, spoken } = setup();
 		await send({ type: 'init', settings: settings() });

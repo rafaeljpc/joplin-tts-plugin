@@ -1,8 +1,19 @@
 name: Release
 
+# Merging into main publishes the version declared in src/manifest.json:
+# validate, build the .jpl, then create the tag vX.Y.Z and a published GitHub
+# release (notes come from CHANGELOG.md). A version that already has a tag is
+# skipped, so merges that do not bump the version (e.g. docs fixes, the badge
+# commit) release nothing.
+
 on:
   push:
-    tags: ['v*.*.*']
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -12,21 +23,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run validate
-      - name: Check tag matches manifest version
+          fetch-depth: 0 # tags are needed to know whether the version is released
+
+      - name: Read the version and check it is new
+        id: version
         run: |
           manifest=$(node -p "require('./src/manifest.json').version")
           pkg=$(node -p "require('./package.json').version")
-          tag="${GITHUB_REF_NAME#v}"
-          [ "$manifest" = "$tag" ] && [ "$pkg" = "$tag" ] || { echo "Version mismatch: tag=$tag manifest=$manifest package=$pkg"; exit 1; }
-      - run: npm run dist
-      - uses: softprops/action-gh-release@v2
+          [ "$manifest" = "$pkg" ] || { echo "::error::Version mismatch: manifest=$manifest package=$pkg"; exit 1; }
+          case "$manifest" in
+            *-dev) echo "::error::Version $manifest is a development version and must not reach main; run 'npm run version:set -- X.Y.Z' on the release branch"; exit 1 ;;
+          esac
+          echo "version=$manifest" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$manifest" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::v$manifest is already released; nothing to publish"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.version.outputs.exists == 'false'
         with:
-          files: publish/*.jpl
-          generate_release_notes: true
-          draft: true
+          node-version: 22
+          cache: npm
+      - if: steps.version.outputs.exists == 'false'
+        run: npm ci
+      - if: steps.version.outputs.exists == 'false'
+        run: npm run validate
+      - if: steps.version.outputs.exists == 'false'
+        run: npm run dist
+      - name: Release notes from the changelog
+        if: steps.version.outputs.exists == 'false'
+        run: node .github/scripts/changelog-section.cjs "${{ steps.version.outputs.version }}" > "$RUNNER_TEMP/notes.md"
+
+      - name: Create the tag and publish the release
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" publish/*.jpl \
+            --target "$GITHUB_SHA" \
+            --title "v${{ steps.version.outputs.version }}" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --latest

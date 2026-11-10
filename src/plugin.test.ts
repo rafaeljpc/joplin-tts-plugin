@@ -222,6 +222,75 @@ describe('start', () => {
 		});
 	});
 
+	describe('highlight', () => {
+		const viewerHandler = () =>
+			(
+				j.contentScripts.onMessage.mock.calls.find((c) => c[0] === 'tts.viewer') as [
+					string,
+					(m: unknown) => Promise<unknown>,
+				]
+			)[1];
+		const highlightCall = () => j.commands.execute.mock.calls.at(-1);
+		const started = async () => {
+			await start();
+			await messageHandler()({ type: 'ready' });
+			await messageHandler()({ type: 'reload' });
+		};
+
+		it('highlights the sentence being read in the editor', async () => {
+			await started();
+			await messageHandler()({ type: 'progress', index: 2 });
+			expect(highlightCall()).toEqual([
+				'editor.execCommand',
+				{ name: 'tts.highlight', args: [{ line: 2, from: 0, to: 16 }] },
+			]);
+		});
+
+		it('clears the highlight when reading ends, and for the title', async () => {
+			await started();
+			await messageHandler()({ type: 'progress', index: null });
+			expect(highlightCall()?.[1].args).toEqual([null]);
+			await messageHandler()({ type: 'progress', index: 0 });
+			expect(highlightCall()?.[1].args).toEqual([null]);
+		});
+
+		it('keeps working when there is no editor to highlight in', async () => {
+			j.commands.execute.mockRejectedValueOnce(new Error('no editor'));
+			await started();
+			await expect(messageHandler()({ type: 'progress', index: 2 })).resolves.toBeUndefined();
+		});
+
+		it('ignores progress that does not match anything loaded', async () => {
+			await start();
+			await messageHandler()({ type: 'progress', index: 1 });
+			expect(highlightCall()?.[1].args).toEqual([null]);
+			await messageHandler()({ type: 'ready' });
+			await messageHandler()({ type: 'reload' });
+			await messageHandler()({ type: 'progress', index: 99 });
+			expect(highlightCall()?.[1].args).toEqual([null]);
+			expect(await viewerHandler()({ type: 'poll' })).toEqual({ highlight: null });
+			expect(await viewerHandler()(null)).toBeUndefined();
+		});
+
+		it('tells the viewer which sentence to highlight when it polls', async () => {
+			await started();
+			expect(await viewerHandler()({ type: 'poll' })).toEqual({ highlight: null });
+			await messageHandler()({ type: 'progress', index: 3 });
+			expect(await viewerHandler()({ type: 'poll' })).toEqual({ highlight: 'Bye.' });
+			await messageHandler()({ type: 'progress', index: null });
+			expect(await viewerHandler()({ type: 'poll' })).toEqual({ highlight: null });
+		});
+
+		it('clears the highlight when another note is selected', async () => {
+			await started();
+			await messageHandler()({ type: 'progress', index: 3 });
+			const changed = j.workspace.onNoteSelectionChange.mock.calls[0][0] as () => Promise<void>;
+			await changed();
+			expect(highlightCall()?.[1].args).toEqual([null]);
+			expect(await viewerHandler()({ type: 'poll' })).toEqual({ highlight: null });
+		});
+	});
+
 	it('handles a note without title or body', async () => {
 		j.workspace.selectedNote.mockResolvedValue({ id: 'x' });
 		await start();

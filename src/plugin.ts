@@ -5,8 +5,8 @@ import {
 	SettingItemType,
 	ToolbarButtonLocation,
 } from 'api/types';
-import { EDITOR_SCRIPT_ID, VIEWER_SCRIPT_ID } from './application/ids';
-import { Interaction, parseInteraction, planReading } from './domain/plan';
+import { EDITOR_HIGHLIGHT_COMMAND, EDITOR_SCRIPT_ID, VIEWER_SCRIPT_ID } from './application/ids';
+import { Interaction, parseInteraction, planReading, ReadingPlan } from './domain/plan';
 import {
 	DEFAULT_SETTINGS,
 	normalizeSettings,
@@ -136,20 +136,44 @@ export async function start(): Promise<void> {
 		VIEWER_SCRIPT_ID,
 		'./viewerContentScript.js',
 	);
+	// What was loaded in the panel, and the sentence the viewer should highlight.
+	let currentPlan: ReadingPlan | null = null;
+	let viewerHighlight: string | null = null;
+
 	const track = async (message: unknown) => {
+		// The viewer cannot be messaged by the plugin, so it asks for the highlight.
+		if ((message as { type?: unknown } | null)?.type === 'poll') {
+			return { highlight: viewerHighlight };
+		}
 		interaction = parseInteraction(message) ?? interaction;
+		return undefined;
 	};
 	await joplin.contentScripts.onMessage(EDITOR_SCRIPT_ID, track);
 	await joplin.contentScripts.onMessage(VIEWER_SCRIPT_ID, track);
 
 	const send = (message: PluginToPanelMessage) => joplin.views.panels.postMessage(panel, message);
 
+	const showHighlight = async (index: number | null) => {
+		const span = index === null ? null : (currentPlan?.highlights[index] ?? null);
+		viewerHighlight = index === null ? null : (currentPlan?.sentences[index] ?? null);
+		try {
+			await joplin.commands.execute('editor.execCommand', {
+				name: EDITOR_HIGHLIGHT_COMMAND,
+				args: [span],
+			});
+		} catch {
+			// No Markdown editor on screen (viewer-only layout): nothing to highlight there.
+		}
+	};
+
 	const loadSelectedNote = async (autoplay: boolean) => {
 		const note = await joplin.workspace.selectedNote();
 		const settings = await readSettings();
-		const { sentences, startIndex } = note
+		const plan = note
 			? planReading({ title: note.title ?? '', body: note.body ?? '' }, settings, interaction)
-			: { sentences: [], startIndex: 0 };
+			: { sentences: [], startIndex: 0, highlights: [] };
+		currentPlan = plan;
+		const { sentences, startIndex } = plan;
 		await send({ type: 'load', title: note?.title ?? '', sentences, startIndex, autoplay });
 	};
 
@@ -175,6 +199,9 @@ export async function start(): Promise<void> {
 						await joplin.settings.setValue(settingKey(key), key === 'rate' ? String(value) : value);
 					}
 				}
+				break;
+			case 'progress':
+				await showHighlight(message.index);
 				break;
 			case 'close':
 				await joplin.views.panels.show(panel, false);
@@ -228,6 +255,7 @@ export async function start(): Promise<void> {
 	await joplin.workspace.onNoteSelectionChange(async () => {
 		// A cursor or selection belongs to the previous note.
 		interaction = null;
+		await showHighlight(null);
 		if (!panelReady || !(await joplin.views.panels.visible(panel))) return;
 		await loadSelectedNote(false);
 	});

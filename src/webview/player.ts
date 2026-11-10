@@ -197,7 +197,15 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 		const message = unwrapMessage(raw);
 		if (message) handleMessage(message);
 	});
-	controller.onChange((state) => view.render(state, title));
+	// Tell the plugin which sentence is current so it can be highlighted in the note.
+	let reportedIndex: number | null = null;
+	controller.onChange((state) => {
+		view.render(state, title);
+		const index = state.status === 'idle' ? null : state.index;
+		if (index === reportedIndex) return;
+		reportedIndex = index;
+		void api.postMessage({ type: 'progress', index });
+	});
 	controller.onError((error) => view.showError(error.message));
 	view.render(controller.getState(), title);
 	void api.postMessage({ type: 'ready' });
