@@ -23,24 +23,28 @@ flowchart LR
 
 Speech happens **in the webview** (that is where `speechSynthesis` and `<audio>` exist). The plugin process only prepares the text, stores settings and controls panel visibility.
 
-## Modules
+## Layers
 
-| Module                             | Responsibility                                                                 | Depends on Joplin/DOM? |
-| ---------------------------------- | ------------------------------------------------------------------------------ | ---------------------- |
-| `src/index.ts`                     | Registers the plugin                                                           | Joplin                 |
-| `src/plugin.ts`                    | Panel, commands, button, menu, settings, message cycle                         | Joplin                 |
-| `src/lib/markdown.ts`              | Markdown → speakable text (removes code, links, images, HTML, markers)         | no                     |
-| `src/lib/sentences.ts`             | Sentence splitting (`Intl.Segmenter`, regex fallback); title as first sentence | no                     |
-| `src/lib/player.ts`                | `PlayerController`: idle/playing/paused state machine, seek, rate, voice       | no                     |
-| `src/lib/webSpeechEngine.ts`       | `speechSynthesis` engine                                                       | DOM (injected)         |
-| `src/lib/audioSlot.ts`             | Plays one `<audio>` source at a time (shared by the online engines)            | no                     |
-| `src/lib/googleTranslateEngine.ts` | Google Translate engine (free, unofficial endpoint; text chunked to 180 chars) | no                     |
-| `src/lib/azureEngine.ts`           | Microsoft Azure Speech engine (official REST API, SSML)                        | no                     |
-| `src/lib/chunks.ts`                | Splits long sentences for engines with a size limit                            | no                     |
-| `src/lib/googleCloudEngine.ts`     | Google Cloud TTS engine (`fetch` + `<audio>` injected)                         | no                     |
-| `src/lib/settings.ts`              | Keys, defaults and normalization of settings                                   | no                     |
-| `src/lib/i18n.ts`                  | en / pt-BR strings                                                             | no                     |
-| `src/webview/player.ts`            | Panel UI and wiring to the controller                                          | DOM                    |
+The code follows a layered (ports & adapters) architecture. **Dependencies point inwards only**; the rule is enforced by ESLint (`no-restricted-imports` per layer in `eslint.config.mjs`), so a violation fails `npm run lint`.
+
+```
+domain  <-  application  <-  adapters  <-  webview  <-  Joplin entry points
+```
+
+| Layer / module                               | Responsibility                                                                 | May import                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------- |
+| `src/domain/types.ts`                        | Core types and the `TtsEngine` **port**, `Settings`                            | nothing                       |
+| `src/domain/markdown.ts`                     | Markdown → speakable text, line-preserving (`markdownToLines`)                 | domain                        |
+| `src/domain/sentences.ts`                    | Sentence splitting (`Intl.Segmenter`, regex fallback)                          | domain                        |
+| `src/domain/plan.ts`                         | Reading plan: start at cursor, or read only the selection                      | domain                        |
+| `src/domain/chunks.ts`                       | Splits long sentences for engines with a size limit                            | domain                        |
+| `src/domain/settings.ts`                     | Keys, defaults and normalization of settings                                   | domain                        |
+| `src/application/player.ts`                  | `PlayerController`: idle/playing/paused state machine (use case)               | domain                        |
+| `src/application/messages.ts`, `ids.ts`      | Plugin ↔ panel message protocol and content-script ids                         | domain                        |
+| `src/adapters/*Engine.ts`, `audioSlot.ts`    | `TtsEngine` implementations: Web Speech, Google Translate, Azure, Google Cloud | domain, application           |
+| `src/webview/player.ts`, `i18n.ts`           | Panel UI, engine wiring, en / pt-BR strings (runs in the browser)              | domain, application, adapters |
+| `src/webview/viewerSelection.ts`             | Reports the selection made in the rendered viewer                              | application                   |
+| `src/plugin.ts`, `index.ts`, content scripts | Composition root: Joplin API (panel, commands, settings, content scripts)      | everything                    |
 
 Every platform dependency (`speechSynthesis`, `fetch`, `Audio`) is **injected**, which allows testing everything in Jest without Joplin or a real browser.
 

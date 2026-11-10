@@ -1,17 +1,12 @@
-import { AzureSpeechEngine } from '../lib/azureEngine';
-import { GoogleCloudEngine } from '../lib/googleCloudEngine';
-import { GoogleTranslateEngine } from '../lib/googleTranslateEngine';
-import { format, getStrings, Strings } from '../lib/i18n';
-import { PlayerController, PlayerState } from '../lib/player';
-import { DEFAULT_SETTINGS } from '../lib/settings';
-import {
-	PanelToPluginMessage,
-	PluginToPanelMessage,
-	Settings,
-	TtsEngine,
-	Voice,
-} from '../lib/types';
-import { WebSpeechEngine } from '../lib/webSpeechEngine';
+import { AzureSpeechEngine } from '../adapters/azureEngine';
+import { GoogleCloudEngine } from '../adapters/googleCloudEngine';
+import { GoogleTranslateEngine } from '../adapters/googleTranslateEngine';
+import { format, getStrings, Strings } from './i18n';
+import { PlayerController, PlayerState } from '../application/player';
+import { DEFAULT_SETTINGS } from '../domain/settings';
+import { PanelToPluginMessage, PluginToPanelMessage } from '../application/messages';
+import { Settings, TtsEngine, Voice } from '../domain/types';
+import { WebSpeechEngine } from '../adapters/webSpeechEngine';
 
 export interface WebviewApiLike {
 	postMessage(message: PanelToPluginMessage): Promise<unknown>;

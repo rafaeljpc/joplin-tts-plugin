@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Changed
+
+- Reorganized `src` into `domain`, `application`, `adapters` and `webview` layers; the dependency rule is enforced by ESLint. No behaviour change.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

@@ -14,12 +14,13 @@
 
 Jest + ts-jest. The code is organized so that almost everything is pure and testable:
 
-| Layer                    | How it is tested                                                            |
-| ------------------------ | --------------------------------------------------------------------------- |
-| `lib/*` (logic)          | Pure unit tests; engines with `speechSynthesis`/`fetch`/`Audio` _fakes_     |
-| `webview/player.ts` (UI) | `jest-environment-jsdom`: simulated real DOM, simulated messages, clicks    |
-| `plugin.ts` / `index.ts` | Joplin API replaced by a _mock_ (`test/mocks/joplinApi.ts`)                 |
-| `.github/scripts/*`      | Unit tests for the coverage-badge generator (`test/coverageBadges.test.ts`) |
+| Layer                       | How it is tested                                                            |
+| --------------------------- | --------------------------------------------------------------------------- |
+| `domain/*`, `application/*` | Pure unit tests, no platform fakes needed                                   |
+| `adapters/*` (engines)      | Unit tests with `speechSynthesis`/`fetch`/`Audio` _fakes_                   |
+| `webview/player.ts` (UI)    | `jest-environment-jsdom`: simulated real DOM, simulated messages, clicks    |
+| `plugin.ts` / `index.ts`    | Joplin API replaced by a _mock_ (`test/mocks/joplinApi.ts`)                 |
+| `.github/scripts/*`         | Unit tests for the coverage-badge generator (`test/coverageBadges.test.ts`) |
 
 - **Required minimum coverage** (fails CI): 100% statements, lines and functions; 95% branches. The project is currently at 100% on every metric.
 - Covered scenarios include: cancellation during a request, stale utterances after pause/seek, `Intl.Segmenter` fallback, late-loading voices, API errors, wrapped-format messages, hidden panel, note switching.
