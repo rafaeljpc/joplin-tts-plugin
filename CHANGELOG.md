@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-10
+
 ### Added
 
 - The sentence being read is highlighted inside the note: in the Markdown editor (CodeMirror 6, with scrolling) and in the rendered viewer.
