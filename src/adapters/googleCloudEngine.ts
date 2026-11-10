@@ -1,4 +1,5 @@
 import { AudioSlot, CreateAudio } from './audioSlot';
+import { PrefetchCache } from './prefetchCache';
 import { SpeakOptions, TtsEngine, Voice } from '../domain/types';
 
 export type { AudioLike } from './audioSlot';
@@ -26,6 +27,7 @@ interface GoogleVoice {
 export class GoogleCloudEngine implements TtsEngine {
 	private slot: AudioSlot;
 	private generation = 0;
+	private cache = new PrefetchCache<string>();
 
 	constructor(private options: GoogleCloudOptions) {
 		this.slot = new AudioSlot(options.createAudio);
@@ -44,8 +46,25 @@ export class GoogleCloudEngine implements TtsEngine {
 	}
 
 	async speak(text: string, { voiceId, rate }: SpeakOptions): Promise<void> {
-		const { apiKey, languageCode, fetchFn } = this.options;
 		const generation = this.generation;
+		const audio = await this.cache.take(`${voiceId}|${text}`, () => this.synthesize(text, voiceId));
+		// A cancel that arrived while the request was in flight must win.
+		if (generation !== this.generation) return;
+		await this.slot.play(`data:audio/mp3;base64,${audio}`, rate);
+	}
+
+	prefetch(text: string, { voiceId }: SpeakOptions): void {
+		this.cache.prefetch(`${voiceId}|${text}`, () => this.synthesize(text, voiceId));
+	}
+
+	cancel(): void {
+		this.generation++;
+		this.slot.cancel();
+	}
+
+	/** Returns the base64 MP3 for `text`. */
+	private async synthesize(text: string, voiceId: string): Promise<string> {
+		const { apiKey, languageCode, fetchFn } = this.options;
 		const body = {
 			input: { text },
 			voice: voiceId ? { languageCode, name: voiceId } : { languageCode },
@@ -60,15 +79,8 @@ export class GoogleCloudEngine implements TtsEngine {
 			},
 		);
 		const data = await this.parse<{ audioContent?: string }>(response);
-		// A cancel that arrived while the request was in flight must win.
-		if (generation !== this.generation) return;
 		if (!data.audioContent) throw new Error('Google TTS returned no audio');
-		await this.slot.play(`data:audio/mp3;base64,${data.audioContent}`, rate);
-	}
-
-	cancel(): void {
-		this.generation++;
-		this.slot.cancel();
+		return data.audioContent;
 	}
 
 	private async parse<T>(response: Response): Promise<T> {

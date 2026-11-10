@@ -150,3 +150,33 @@ describe('AzureSpeechEngine', () => {
 		expect(revokeObjectUrl).toHaveBeenCalledWith('blob:audio');
 	});
 });
+
+describe('AzureSpeechEngine prefetch', () => {
+	const options = { voiceId: 'pt-BR-FranciscaNeural', rate: 1 };
+
+	it('fetches the next sentence ahead of time and reuses it', async () => {
+		const { engine, fetchFn, end } = setup();
+		fetchFn.mockResolvedValue(audioResponse());
+		engine.prefetch('Next.', options);
+		engine.prefetch('Next.', options);
+		await tick();
+		expect(fetchFn).toHaveBeenCalledTimes(1);
+		const speaking = engine.speak('Next.', options);
+		await tick();
+		end();
+		await speaking;
+		expect(fetchFn).toHaveBeenCalledTimes(1);
+	});
+
+	it('fetches again when the background request failed', async () => {
+		const { engine, fetchFn, end } = setup();
+		fetchFn.mockResolvedValueOnce(failure(500)).mockResolvedValueOnce(audioResponse());
+		engine.prefetch('Next.', options);
+		await tick();
+		const speaking = engine.speak('Next.', options);
+		await tick();
+		end();
+		await speaking;
+		expect(fetchFn).toHaveBeenCalledTimes(2);
+	});
+});

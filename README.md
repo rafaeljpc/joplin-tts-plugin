@@ -13,6 +13,7 @@ Reads the open note aloud, **sentence by sentence**, with a player panel: voice 
 
 - **Where reading starts:** in the Markdown editor, at the sentence under the cursor; if you select text (editor or viewer), only the selection is read; otherwise the whole note from the beginning. This needs the CodeMirror 6 editor.
 - 🔊 Button in the note toolbar and above the editor, **Tools → Joplin Text-to-Speech: read note** menu item and `Ctrl/Cmd+Alt+R`.
+- Online engines prefetch the next sentence, so there is no pause between sentences.
 - Player panel with voice picker, speed (0.75×–3×), progress ("Sentence 3 of 8") and the current sentence.
 - Four speech engines (pick one in the settings):
   - **System voices** (Web Speech API) — offline, free.

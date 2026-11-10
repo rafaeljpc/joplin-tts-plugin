@@ -29,10 +29,10 @@
 
 ## Roadmap
 
-| Version | Items                                                                                                                                      |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0.1     | Panel, commands, Web Speech, Google Translate, Azure, Google Cloud TTS, tests with 100% coverage (**this repository**)                     |
-| 0.2     | Prefetch the next sentence's audio (Google) to remove gaps; read only the selected text                                                    |
-| 0.3     | Highlight the current sentence inside the note (content script in the viewer/editor)                                                       |
-| 0.4     | Offline Piper/WASM engine (idea mentioned on the Joplin forum; no ready-made example known)                                                |
-| ≥ 1.0   | Publish to the official catalog; submit as a "recommended" plugin for iOS; evaluate a native Android TTS API (contribution to Joplin core) |
+| Version | Items                                                                                                                                        |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | Panel, commands, Web Speech, Google Translate, Azure, Google Cloud TTS, tests with 100% coverage (**this repository**)                       |
+| 0.2     | Prefetch the next sentence's audio (online engines) to remove gaps (**done**); start at the cursor / read only the selection (done in 0.1.x) |
+| 0.3     | Highlight the current sentence inside the note (content script in the viewer/editor)                                                         |
+| 0.4     | Offline Piper/WASM engine (idea mentioned on the Joplin forum; no ready-made example known)                                                  |
+| ≥ 1.0   | Publish to the official catalog; submit as a "recommended" plugin for iOS; evaluate a native Android TTS API (contribution to Joplin core)   |

@@ -139,10 +139,14 @@ export class PlayerController {
 	private speakCurrent(): void {
 		const generation = ++this.generation;
 		const text = this.sentences[this.index];
-		this.engine.speak(text, { voiceId: this.voiceId, rate: this.rate }).then(
+		const options = { voiceId: this.voiceId, rate: this.rate };
+		this.engine.speak(text, options).then(
 			() => this.onSentenceDone(generation),
 			(error: unknown) => this.onSentenceFailed(generation, error),
 		);
+		// Ask for the next sentence only after the current request is on its way.
+		const next = this.sentences[this.index + 1];
+		if (next !== undefined) this.engine.prefetch?.(next, options);
 	}
 
 	private onSentenceDone(generation: number): void {
