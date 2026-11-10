@@ -20,7 +20,9 @@ Commit messages follow [Conventional Commits](https://www.conventionalcommits.or
 npm run validate
 ```
 
-This runs ESLint, Prettier, the TypeScript check and Jest. Coverage thresholds (100% statements/lines/functions, 95% branches) must hold. New behavior needs tests.
+This runs ESLint, Prettier, the TypeScript check and Jest, then regenerates the README coverage badges in `.github/badges`. Coverage thresholds (100% statements/lines/functions, 95% branches) must hold. New behavior needs tests.
+
+Commit the updated badges together with the code: CI fails when `.github/badges` is outdated, and nothing pushes to `main` on its own.
 
 ## Starting a version
 
@@ -40,7 +42,7 @@ The release workflow refuses to publish a `-dev` version, so it cannot reach `ma
 4. **That merge is the release**: the workflow tags `vX.Y.Z` and publishes it. Follow it in the Actions tab.
 5. Merge `release/x.y.z` back into `develop`.
 
-A merge into `main` that does not change the version (a docs fix, the badge commit) releases nothing.
+A merge into `main` that does not change the version (a docs fix) releases nothing.
 
 ## Design docs
 

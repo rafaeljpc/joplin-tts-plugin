@@ -9,8 +9,6 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # commit of the coverage badges on main
     strategy:
       matrix:
         node-version: [18, 22]
@@ -25,24 +23,14 @@ jobs:
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm run coverage
+      # The README badges live in the repo and are committed together with the code
+      # (`npm run validate` regenerates them). The CI only checks they are current,
+      # so nothing needs to push to main.
       - name: Coverage summary and badges
         if: matrix.node-version == 22
-        run: node .github/scripts/coverage-badges.cjs --badges .github/badges >> "$GITHUB_STEP_SUMMARY"
-      # The README badges live in the repo itself (no external service). They only
-      # change with main's coverage, and the commit carries [skip ci] so it does not
-      # trigger this workflow again.
-      - name: Commit coverage badges
-        if: matrix.node-version == 22 && github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          git add .github/badges
-          if git diff --cached --quiet; then
-            echo "Badges unchanged"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: update coverage badges [skip ci]"
-          git push origin HEAD:main
+          npm run --silent badges >> "$GITHUB_STEP_SUMMARY"
+          git diff --exit-code -- .github/badges || { echo "::error::Coverage badges are outdated; run 'npm run validate' and commit .github/badges"; exit 1; }
       - run: npm run dist
       - uses: actions/upload-artifact@v4
         if: matrix.node-version == 22
