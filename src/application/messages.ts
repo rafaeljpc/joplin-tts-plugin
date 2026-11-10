@@ -18,5 +18,7 @@ export type PluginToPanelMessage =
 export type PanelToPluginMessage =
 	| { type: 'ready' }
 	| { type: 'reload'; autoplay?: boolean }
+	/** Sentence being read or paused on; null when reading is not in progress. */
+	| { type: 'progress'; index: number | null }
 	| { type: 'saveSettings'; patch: Partial<Settings> }
 	| { type: 'close' };

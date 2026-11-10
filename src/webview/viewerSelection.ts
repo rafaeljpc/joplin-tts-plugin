@@ -1,4 +1,5 @@
 import { VIEWER_SCRIPT_ID } from '../application/ids';
+import { createViewerHighlighter, detectHighlightEnv } from './viewerHighlight';
 
 export interface ViewerApi {
 	postMessage(contentScriptId: string, message: unknown): Promise<unknown>;
@@ -22,7 +23,33 @@ export function trackViewerSelection(doc: Document, api: ViewerApi, delayMs = 15
 	});
 }
 
+/**
+ * The plugin cannot push messages into the rendered note, so the note asks for
+ * the sentence to highlight at a regular pace. Requests never overlap.
+ */
+export function pollHighlight(
+	api: ViewerApi,
+	show: (text: string | null) => void,
+	intervalMs = 500,
+): void {
+	let pending = false;
+	setInterval(() => {
+		if (pending) return;
+		pending = true;
+		Promise.resolve(api.postMessage(VIEWER_SCRIPT_ID, { type: 'poll' }))
+			.then((reply) =>
+				show((reply as { highlight?: string | null } | undefined)?.highlight ?? null),
+			)
+			.catch(() => undefined)
+			.finally(() => {
+				pending = false;
+			});
+	}, intervalMs);
+}
+
 declare const webviewApi: ViewerApi | undefined;
 if (typeof webviewApi !== 'undefined' && typeof document !== 'undefined') {
 	trackViewerSelection(document, webviewApi);
+	const env = detectHighlightEnv(window);
+	if (env) pollHighlight(webviewApi, createViewerHighlighter(document, env).show);
 }

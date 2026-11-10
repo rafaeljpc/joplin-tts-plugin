@@ -82,16 +82,24 @@ Plugin → panel:
 
 Panel → plugin:
 
-| `type`         | Fields  | Effect                                                  |
-| -------------- | ------- | ------------------------------------------------------- |
-| `ready`        | —       | Handshake: plugin sends `init` (and any pending `load`) |
-| `reload`       | —       | Reloads the current note without autoplay               |
-| `saveSettings` | `patch` | Persists the voice/speed chosen in the panel            |
-| `close`        | —       | Hides the panel                                         |
+| `type`         | Fields  | Effect                                                                    |
+| -------------- | ------- | ------------------------------------------------------------------------- |
+| `ready`        | —       | Handshake: plugin sends `init` (and any pending `load`)                   |
+| `reload`       | —       | Reloads the current note without autoplay                                 |
+| `saveSettings` | `patch` | Persists the voice/speed chosen in the panel                              |
+| `progress`     | `index` | Sentence being read or paused on (`null` when idle): drives the highlight |
+| `close`        | —       | Hides the panel                                                           |
 
 The `ready` handshake exists because messages sent before the webview loads are lost. The "read note" command keeps a _pending autoplay_ until `ready` arrives. Switching notes with the panel open reloads **without autoplay**, so audio never starts unexpectedly.
 
 The webview accepts the payload either directly or wrapped in `{ message }`, since the shape delivered by `webviewApi.onMessage` varies between Joplin versions.
+
+## Highlighting the sentence being read
+
+The panel reports every change of the current sentence (`progress`). The plugin keeps the reading plan it sent (`ReadingPlan.highlights`: for each sentence, its line and its columns inside the raw Markdown line, found by `domain/locate.ts`, which skips the markup removed during conversion) and shows the highlight in two places:
+
+- **Markdown editor (CodeMirror 6)**: the plugin runs `editor.execCommand` with the command `tts.highlight`, registered by the editor content script. It moves a decoration (`.tts-current-sentence`) over the sentence and scrolls it into view. If a sentence cannot be located, the whole line is highlighted. A selection plan has no line information, so nothing is highlighted in the editor.
+- **Rendered viewer**: a plugin cannot push messages into the rendered note, so `webview/viewerSelection.js` **polls** the plugin every 500 ms (`{ type: 'poll' }` → `{ highlight: text | null }`) and `viewerHighlight.ts` finds that text in the page and marks it with the CSS Custom Highlight API (`::highlight(tts-current)`), without touching the DOM. Browsers without that API simply show no highlight.
 
 ## Reading the note
 

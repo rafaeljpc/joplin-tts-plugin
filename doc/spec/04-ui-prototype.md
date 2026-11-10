@@ -34,7 +34,7 @@ During the design session four prototype screens were generated (HTML rendered t
 | Previous / next / stop                      | Implemented (extra compared to the mockup)                        |
 | "Sentence N of M" + progress bar            | Implemented                                                       |
 | Current sentence **in the panel**           | Implemented                                                       |
-| Current sentence **highlighted in note**    | **Planned** — the hardest part (see roadmap)                      |
+| Current sentence **highlighted in note**    | Implemented in 0.3 (editor and rendered viewer)                   |
 | Settings screen                             | Implemented in Joplin's native settings section                   |
 | Speeds 0.75×, 1×, 1.25×, 1.5×, 2×, 2.5×, 3× | Implemented (values outside the list are added to it)             |
 | Android bottom-panel layout                 | Depends on Joplin mobile support; uses the same panel             |
