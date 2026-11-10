@@ -20,6 +20,11 @@ export interface TtsEngine {
 	listVoices(): Promise<Voice[]>;
 	speak(text: string, options: SpeakOptions): Promise<void>;
 	cancel(): void;
+	/**
+	 * Optional hint: `text` will be spoken next, so online engines can fetch its
+	 * audio now and avoid a gap between sentences. Must never throw or reject.
+	 */
+	prefetch?(text: string, options: SpeakOptions): void;
 }
 
 export interface Settings {

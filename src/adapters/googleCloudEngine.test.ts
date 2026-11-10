@@ -164,3 +164,34 @@ describe('GoogleCloudEngine', () => {
 		await expect(engine.listVoices()).rejects.toThrow('Google TTS error 502');
 	});
 });
+
+describe('GoogleCloudEngine prefetch', () => {
+	const options = { voiceId: 'v', rate: 1 };
+
+	it('synthesizes the next sentence ahead of time and reuses it', async () => {
+		const { engine, fetchFn, audio } = setup([jsonResponse({ audioContent: 'QUJD' })]);
+		engine.prefetch('Next.', options);
+		await tick();
+		expect(fetchFn).toHaveBeenCalledTimes(1);
+		const speaking = engine.speak('Next.', options);
+		await tick();
+		expect(audio.src).toBe('data:audio/mp3;base64,QUJD');
+		fire(audio, 'onended');
+		await speaking;
+		expect(fetchFn).toHaveBeenCalledTimes(1);
+	});
+
+	it('synthesizes again when the background request failed', async () => {
+		const { engine, fetchFn, audio } = setup([
+			jsonResponse({}, false, 500),
+			jsonResponse({ audioContent: 'QUJD' }),
+		]);
+		engine.prefetch('Next.', options);
+		await tick();
+		const speaking = engine.speak('Next.', options);
+		await tick();
+		fire(audio, 'onended');
+		await speaking;
+		expect(fetchFn).toHaveBeenCalledTimes(2);
+	});
+});

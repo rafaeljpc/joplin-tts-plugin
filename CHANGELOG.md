@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-10
+
+### Added
+
+- Online engines (Google Translate, Azure, Google Cloud) fetch the next sentence's audio while the current one plays, removing the pause between sentences.
+
 ## [0.1.2] - 2026-11-10
 
 ### Added
