@@ -1,6 +1,6 @@
 {
   "name": "joplin-plugin-tts",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Read the open Joplin note aloud, sentence by sentence, with voice, play/pause and speed controls.",
   "scripts": {
     "dist": "webpack --env joplin-plugin-config=buildMain && webpack --env joplin-plugin-config=buildExtraScripts && webpack --env joplin-plugin-config=createArchive",
