@@ -54,17 +54,24 @@ describe('registerSettings / readSettings', () => {
 			'tts.voice',
 			'tts.rate',
 			'tts.googleApiKey',
-			'tts.googleLanguage',
+			'tts.azureApiKey',
+			'tts.azureRegion',
+			'tts.language',
 			'tts.readTitle',
 		]);
 		expect(settings['tts.googleApiKey'].secure).toBe(true);
+		expect(settings['tts.azureApiKey'].secure).toBe(true);
 		expect(settings['tts.rate'].type).toBe(SettingItemType.String);
 	});
 
 	it('reads and normalizes stored values', async () => {
-		Object.assign(stored, { 'tts.engine': 'google', 'tts.rate': '1.5', 'tts.readTitle': false });
+		Object.assign(stored, {
+			'tts.engine': 'google-cloud',
+			'tts.rate': '1.5',
+			'tts.readTitle': false,
+		});
 		await expect(readSettings()).resolves.toMatchObject({
-			engine: 'google',
+			engine: 'google-cloud',
 			rate: 1.5,
 			readTitle: false,
 		});
@@ -84,9 +91,14 @@ describe('start', () => {
 		expect(command(COMMAND_READ)).toBeDefined();
 		expect(command(COMMAND_STOP)).toBeDefined();
 		expect(j.views.toolbarButtons.create).toHaveBeenCalledWith(
-			COMMAND_READ,
+			'tts.readNote.noteToolbar',
 			COMMAND_READ,
 			'noteToolbar',
+		);
+		expect(j.views.toolbarButtons.create).toHaveBeenCalledWith(
+			'tts.readNote.editorToolbar',
+			COMMAND_READ,
+			'editorToolbar',
 		);
 		expect(j.views.menuItems.create).toHaveBeenCalledWith(COMMAND_READ, COMMAND_READ, 'tools', {
 			accelerator: 'CmdOrCtrl+Alt+R',

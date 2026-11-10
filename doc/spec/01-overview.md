@@ -35,7 +35,7 @@ Included:
 
 - Player panel (voice, play/pause, previous/next/stop, speed, "Sentence N of M" progress).
 - Note toolbar button + Tools menu item + shortcut.
-- **Web Speech** engine (system voices, offline) and **Google Cloud TTS** engine (user's key).
+- Four engines: **Web Speech** (system voices, offline), **Google Translate** (online, free, unofficial), **Microsoft Azure Speech** (user's key) and **Google Cloud TTS** (user's key).
 - Markdown-to-speakable-text conversion and sentence splitting.
 - English and Portuguese (pt-BR) interface.
 

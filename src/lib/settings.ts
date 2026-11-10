@@ -7,7 +7,9 @@ export const DEFAULT_SETTINGS: Settings = {
 	voice: '',
 	rate: 1,
 	googleApiKey: '',
-	googleLanguage: 'en-US',
+	azureApiKey: '',
+	azureRegion: 'eastus',
+	language: 'en-US',
 	readTitle: true,
 };
 
@@ -20,19 +22,24 @@ export const clampRate = (rate: unknown): number => {
 	return Math.min(MAX_RATE, Math.max(MIN_RATE, n));
 };
 
+const ENGINES: EngineId[] = ['webspeech', 'google-translate', 'google-cloud', 'azure'];
+
 export const normalizeEngine = (engine: unknown): EngineId =>
-	engine === 'google' ? 'google' : 'webspeech';
+	ENGINES.find((id) => id === engine) ?? 'webspeech';
+
+/** Trimmed string value, or the fallback when it is missing, blank or not a string. */
+const trimmed = (value: unknown, fallback: string): string =>
+	typeof value === 'string' && value.trim() ? value.trim() : fallback;
 
 /** Coerces untrusted stored values into a valid Settings object. */
 export const normalizeSettings = (raw: Partial<Record<keyof Settings, unknown>>): Settings => ({
 	engine: normalizeEngine(raw.engine),
 	voice: typeof raw.voice === 'string' ? raw.voice : DEFAULT_SETTINGS.voice,
 	rate: clampRate(raw.rate ?? DEFAULT_SETTINGS.rate),
-	googleApiKey: typeof raw.googleApiKey === 'string' ? raw.googleApiKey.trim() : '',
-	googleLanguage:
-		typeof raw.googleLanguage === 'string' && raw.googleLanguage.trim()
-			? raw.googleLanguage.trim()
-			: DEFAULT_SETTINGS.googleLanguage,
+	googleApiKey: trimmed(raw.googleApiKey, ''),
+	azureApiKey: trimmed(raw.azureApiKey, ''),
+	azureRegion: trimmed(raw.azureRegion, DEFAULT_SETTINGS.azureRegion),
+	language: trimmed(raw.language, DEFAULT_SETTINGS.language),
 	readTitle: raw.readTitle === undefined ? DEFAULT_SETTINGS.readTitle : Boolean(raw.readTitle),
 });
 

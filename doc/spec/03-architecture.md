@@ -25,18 +25,22 @@ Speech happens **in the webview** (that is where `speechSynthesis` and `<audio>`
 
 ## Modules
 
-| Module                         | Responsibility                                                                 | Depends on Joplin/DOM? |
-| ------------------------------ | ------------------------------------------------------------------------------ | ---------------------- |
-| `src/index.ts`                 | Registers the plugin                                                           | Joplin                 |
-| `src/plugin.ts`                | Panel, commands, button, menu, settings, message cycle                         | Joplin                 |
-| `src/lib/markdown.ts`          | Markdown → speakable text (removes code, links, images, HTML, markers)         | no                     |
-| `src/lib/sentences.ts`         | Sentence splitting (`Intl.Segmenter`, regex fallback); title as first sentence | no                     |
-| `src/lib/player.ts`            | `PlayerController`: idle/playing/paused state machine, seek, rate, voice       | no                     |
-| `src/lib/webSpeechEngine.ts`   | `speechSynthesis` engine                                                       | DOM (injected)         |
-| `src/lib/googleCloudEngine.ts` | Google Cloud TTS engine (`fetch` + `<audio>` injected)                         | no                     |
-| `src/lib/settings.ts`          | Keys, defaults and normalization of settings                                   | no                     |
-| `src/lib/i18n.ts`              | en / pt-BR strings                                                             | no                     |
-| `src/webview/player.ts`        | Panel UI and wiring to the controller                                          | DOM                    |
+| Module                             | Responsibility                                                                 | Depends on Joplin/DOM? |
+| ---------------------------------- | ------------------------------------------------------------------------------ | ---------------------- |
+| `src/index.ts`                     | Registers the plugin                                                           | Joplin                 |
+| `src/plugin.ts`                    | Panel, commands, button, menu, settings, message cycle                         | Joplin                 |
+| `src/lib/markdown.ts`              | Markdown → speakable text (removes code, links, images, HTML, markers)         | no                     |
+| `src/lib/sentences.ts`             | Sentence splitting (`Intl.Segmenter`, regex fallback); title as first sentence | no                     |
+| `src/lib/player.ts`                | `PlayerController`: idle/playing/paused state machine, seek, rate, voice       | no                     |
+| `src/lib/webSpeechEngine.ts`       | `speechSynthesis` engine                                                       | DOM (injected)         |
+| `src/lib/audioSlot.ts`             | Plays one `<audio>` source at a time (shared by the online engines)            | no                     |
+| `src/lib/googleTranslateEngine.ts` | Google Translate engine (free, unofficial endpoint; text chunked to 180 chars) | no                     |
+| `src/lib/azureEngine.ts`           | Microsoft Azure Speech engine (official REST API, SSML)                        | no                     |
+| `src/lib/chunks.ts`                | Splits long sentences for engines with a size limit                            | no                     |
+| `src/lib/googleCloudEngine.ts`     | Google Cloud TTS engine (`fetch` + `<audio>` injected)                         | no                     |
+| `src/lib/settings.ts`              | Keys, defaults and normalization of settings                                   | no                     |
+| `src/lib/i18n.ts`                  | en / pt-BR strings                                                             | no                     |
+| `src/webview/player.ts`            | Panel UI and wiring to the controller                                          | DOM                    |
 
 Every platform dependency (`speechSynthesis`, `fetch`, `Audio`) is **injected**, which allows testing everything in Jest without Joplin or a real browser.
 

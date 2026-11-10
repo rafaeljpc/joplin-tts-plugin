@@ -1,4 +1,6 @@
+import { AzureSpeechEngine } from '../lib/azureEngine';
 import { GoogleCloudEngine } from '../lib/googleCloudEngine';
+import { GoogleTranslateEngine } from '../lib/googleTranslateEngine';
 import { format, getStrings, Strings } from '../lib/i18n';
 import { PlayerController, PlayerState } from '../lib/player';
 import { DEFAULT_SETTINGS } from '../lib/settings';
@@ -21,6 +23,7 @@ export interface WebviewScope {
 	SpeechSynthesisUtterance?: typeof SpeechSynthesisUtterance;
 	fetch: typeof fetch;
 	Audio: typeof Audio;
+	URL: { createObjectURL(blob: Blob): string; revokeObjectURL(url: string): void };
 	navigator: { language?: string };
 }
 
@@ -39,19 +42,36 @@ class UnavailableEngine implements TtsEngine {
 }
 
 export function createEngine(settings: Settings, scope: WebviewScope, t: Strings): TtsEngine {
-	if (settings.engine === 'google') {
-		if (!settings.googleApiKey) return new UnavailableEngine(t.missingApiKey);
-		return new GoogleCloudEngine({
-			apiKey: settings.googleApiKey,
-			languageCode: settings.googleLanguage,
-			fetchFn: (url, init) => scope.fetch(url, init),
-			createAudio: (src) => new scope.Audio(src),
-		});
+	const fetchFn = (url: string, init?: RequestInit) => scope.fetch(url, init);
+	const createAudio = (src: string) => new scope.Audio(src);
+	switch (settings.engine) {
+		case 'google-cloud':
+			if (!settings.googleApiKey) return new UnavailableEngine(t.missingGoogleKey);
+			return new GoogleCloudEngine({
+				apiKey: settings.googleApiKey,
+				languageCode: settings.language,
+				fetchFn,
+				createAudio,
+			});
+		case 'azure':
+			if (!settings.azureApiKey) return new UnavailableEngine(t.missingAzureKey);
+			return new AzureSpeechEngine({
+				apiKey: settings.azureApiKey,
+				region: settings.azureRegion,
+				languageCode: settings.language,
+				fetchFn,
+				createAudio,
+				createObjectUrl: (blob) => scope.URL.createObjectURL(blob),
+				revokeObjectUrl: (url) => scope.URL.revokeObjectURL(url),
+			});
+		case 'google-translate':
+			return new GoogleTranslateEngine({ languageCode: settings.language, createAudio });
+		default:
+			if (!scope.speechSynthesis || !scope.SpeechSynthesisUtterance) {
+				return new UnavailableEngine(t.unsupported);
+			}
+			return new WebSpeechEngine(scope.speechSynthesis, scope.SpeechSynthesisUtterance);
 	}
-	if (!scope.speechSynthesis || !scope.SpeechSynthesisUtterance) {
-		return new UnavailableEngine(t.unsupported);
-	}
-	return new WebSpeechEngine(scope.speechSynthesis, scope.SpeechSynthesisUtterance);
 }
 
 /** Joplin may deliver the payload directly or wrapped as `{ message }`. */
@@ -144,10 +164,15 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 		);
 	};
 
+	// Ids of the voices of the current engine; null when listing failed.
+	let voiceIds: Set<string> | null = null;
+
 	const fillVoices = async () => {
 		let voices: Voice[] = [];
+		voiceIds = null;
 		try {
 			voices = await controller.listVoices();
+			voiceIds = new Set(voices.map((v) => v.id));
 		} catch (error) {
 			showError(error instanceof Error ? error.message : String(error));
 		}
@@ -165,13 +190,11 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	};
 
 	// --- Settings -------------------------------------------------------
-	const engineChanged = (next: Settings) =>
-		next.engine !== settings.engine ||
-		next.googleApiKey !== settings.googleApiKey ||
-		next.googleLanguage !== settings.googleLanguage;
+	const engineSignature = (c: Settings) =>
+		JSON.stringify([c.engine, c.googleApiKey, c.azureApiKey, c.azureRegion, c.language]);
 
 	const applySettings = async (next: Settings, first: boolean) => {
-		const replaceEngine = first || engineChanged(next);
+		const replaceEngine = first || engineSignature(next) !== engineSignature(settings);
 		settings = next;
 		if (replaceEngine) {
 			controller.setEngine(createEngine(settings, scope, t));
@@ -179,7 +202,8 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 			await fillVoices();
 		}
 		controller.setRate(settings.rate);
-		controller.setVoice(settings.voice);
+		// A voice saved for another engine is unknown here: fall back to the default.
+		controller.setVoice(voiceIds && !voiceIds.has(settings.voice) ? '' : settings.voice);
 		fillRates();
 	};
 

@@ -32,6 +32,7 @@ function makeScope(overrides: Partial<WebviewScope> = {}) {
 		SpeechSynthesisUtterance: FakeUtterance as unknown as typeof SpeechSynthesisUtterance,
 		fetch: jest.fn() as unknown as typeof fetch,
 		Audio: jest.fn() as unknown as typeof Audio,
+		URL: { createObjectURL: jest.fn(() => 'blob:x'), revokeObjectURL: jest.fn() },
 		navigator: { language: 'en-US' },
 		...overrides,
 	};
@@ -89,8 +90,46 @@ describe('createEngine', () => {
 
 	it('requires an API key for Google', async () => {
 		const { scope } = makeScope();
-		const engine = createEngine(settings({ engine: 'google' }), scope, t);
-		await expect(engine.speak('x', { voiceId: '', rate: 1 })).rejects.toThrow(t.missingApiKey);
+		const engine = createEngine(settings({ engine: 'google-cloud' }), scope, t);
+		await expect(engine.speak('x', { voiceId: '', rate: 1 })).rejects.toThrow(t.missingGoogleKey);
+	});
+
+	it('requires a key for Azure', async () => {
+		const { scope } = makeScope();
+		const engine = createEngine(settings({ engine: 'azure' }), scope, t);
+		await expect(engine.speak('x', { voiceId: '', rate: 1 })).rejects.toThrow(t.missingAzureKey);
+	});
+
+	it('creates the Azure engine, using blob URLs for the audio', async () => {
+		const audio = {
+			playbackRate: 1,
+			onended: null as null | (() => void),
+			onerror: null,
+			play: jest.fn(),
+			pause: jest.fn(),
+		};
+		const fetchMock = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) });
+		const { scope } = makeScope({
+			fetch: fetchMock as unknown as typeof fetch,
+			Audio: jest.fn(() => audio) as unknown as typeof Audio,
+		});
+		const engine = createEngine(
+			settings({ engine: 'azure', azureApiKey: 'k', language: 'pt-BR' }),
+			scope,
+			t,
+		);
+		const speaking = engine.speak('oi', { voiceId: 'pt-BR-FranciscaNeural', rate: 1 });
+		await flush();
+		audio.onended?.();
+		await speaking;
+		expect(scope.URL.createObjectURL).toHaveBeenCalled();
+		expect(scope.URL.revokeObjectURL).toHaveBeenCalledWith('blob:x');
+	});
+
+	it('creates the Google Translate engine', async () => {
+		const { scope } = makeScope();
+		const engine = createEngine(settings({ engine: 'google-translate' }), scope, t);
+		await expect(engine.listVoices()).resolves.not.toHaveLength(0);
 	});
 
 	it('wires fetch and Audio into the Google engine', async () => {
@@ -114,7 +153,7 @@ describe('createEngine', () => {
 			fetch: fetchMock as unknown as typeof fetch,
 			Audio: AudioMock as unknown as typeof Audio,
 		});
-		const engine = createEngine(settings({ engine: 'google', googleApiKey: 'k' }), scope, t);
+		const engine = createEngine(settings({ engine: 'google-cloud', googleApiKey: 'k' }), scope, t);
 		await expect(engine.listVoices()).resolves.toHaveLength(1);
 		const speaking = engine.speak('hi', { voiceId: 'g1', rate: 1 });
 		await flush();
@@ -227,7 +266,7 @@ describe('initPlayer', () => {
 		const calls = synth.getVoices.mock.calls.length;
 		await send({ type: 'settings', settings: settings({ rate: 1.25 }) });
 		expect(synth.getVoices.mock.calls.length).toBe(calls); // voices not refetched
-		await send({ type: 'settings', settings: settings({ engine: 'google' }) });
+		await send({ type: 'settings', settings: settings({ engine: 'google-cloud' }) });
 		expect([...q('.tts-voice').querySelectorAll('option')]).toHaveLength(1);
 	});
 

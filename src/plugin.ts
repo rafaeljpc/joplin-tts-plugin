@@ -19,7 +19,7 @@ export const PANEL_HTML = '<div id="tts-root"></div>';
 
 export async function registerSettings(): Promise<void> {
 	await joplin.settings.registerSection(SETTINGS_SECTION, {
-		label: 'Read Aloud (TTS)',
+		label: 'Joplin Text-to-Speech',
 		iconName: 'fas fa-volume-up',
 		description:
 			'Voice, speed and the speech engine. Voice and speed can also be changed in the player panel.',
@@ -33,8 +33,14 @@ export async function registerSettings(): Promise<void> {
 			isEnum: true,
 			value: DEFAULT_SETTINGS.engine,
 			label: 'Speech engine',
-			description: 'System voices work offline. Google Cloud needs your own API key.',
-			options: { webspeech: 'System voices (Web Speech)', google: 'Google Cloud Text-to-Speech' },
+			description:
+				'System voices work offline. Google Translate is free but unofficial and may stop working. Google Cloud and Azure need your own key.',
+			options: {
+				webspeech: 'System voices (offline)',
+				'google-translate': 'Google Translate (online, free, unofficial)',
+				'google-cloud': 'Google Cloud Text-to-Speech (API key)',
+				azure: 'Microsoft Azure Speech (API key)',
+			},
 		},
 		[settingKey('voice')]: {
 			section: SETTINGS_SECTION,
@@ -59,13 +65,30 @@ export async function registerSettings(): Promise<void> {
 			label: 'Google Cloud API key',
 			description: 'Only used with the Google Cloud engine. Stored in the system keychain.',
 		},
-		[settingKey('googleLanguage')]: {
+		[settingKey('azureApiKey')]: {
+			section: SETTINGS_SECTION,
+			public: true,
+			secure: true,
+			type: SettingItemType.String,
+			value: DEFAULT_SETTINGS.azureApiKey,
+			label: 'Azure Speech key',
+			description: 'Only used with the Azure engine. Stored in the system keychain.',
+		},
+		[settingKey('azureRegion')]: {
 			section: SETTINGS_SECTION,
 			public: true,
 			type: SettingItemType.String,
-			value: DEFAULT_SETTINGS.googleLanguage,
-			label: 'Google Cloud language code',
-			description: 'For example en-US or pt-BR. Used to list and pick Google voices.',
+			value: DEFAULT_SETTINGS.azureRegion,
+			label: 'Azure Speech region',
+			description: 'Region of your Speech resource, for example eastus or brazilsouth.',
+		},
+		[settingKey('language')]: {
+			section: SETTINGS_SECTION,
+			public: true,
+			type: SettingItemType.String,
+			value: DEFAULT_SETTINGS.language,
+			label: 'Language code (online engines)',
+			description: 'For example en-US or pt-BR. Used to list voices and as the default language.',
 		},
 		[settingKey('readTitle')]: {
 			section: SETTINGS_SECTION,
@@ -102,7 +125,7 @@ export async function start(): Promise<void> {
 		const settings = await readSettings();
 		const body = note ? markdownToPlainText(note.body ?? '') : '';
 		const sentences = note
-			? noteToSentences(note.title ?? '', body, settings.readTitle, settings.googleLanguage)
+			? noteToSentences(note.title ?? '', body, settings.readTitle, settings.language)
 			: [];
 		await send({ type: 'load', title: note?.title ?? '', sentences, autoplay });
 	};
@@ -157,10 +180,17 @@ export async function start(): Promise<void> {
 		},
 	});
 
+	// Top-right note toolbar and the toolbar above the editor, so the button is
+	// reachable whichever layout or editor the user has.
 	await joplin.views.toolbarButtons.create(
-		COMMAND_READ,
+		`${COMMAND_READ}.noteToolbar`,
 		COMMAND_READ,
 		ToolbarButtonLocation.NoteToolbar,
+	);
+	await joplin.views.toolbarButtons.create(
+		`${COMMAND_READ}.editorToolbar`,
+		COMMAND_READ,
+		ToolbarButtonLocation.EditorToolbar,
 	);
 	await joplin.views.menuItems.create(COMMAND_READ, COMMAND_READ, MenuItemLocation.Tools, {
 		accelerator: 'CmdOrCtrl+Alt+R',

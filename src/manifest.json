@@ -3,7 +3,7 @@
   "id": "com.rafaeljpc.joplin-tts",
   "app_min_version": "3.0",
   "version": "0.1.0",
-  "name": "Read Aloud (TTS)",
+  "name": "Joplin Text-to-Speech",
   "description": "Read the open note aloud, sentence by sentence, with voice selection, play/pause and speed controls.",
   "author": "rafaeljpc",
   "homepage_url": "https://github.com/rafaeljpc/joplin-tts-plugin",

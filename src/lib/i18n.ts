@@ -13,8 +13,9 @@ const en = {
 	empty: 'This note has nothing to read.',
 	ready: 'Ready',
 	errorPrefix: 'Error: ',
-	missingApiKey: 'Set a Google Cloud API key in Settings > Read Aloud (TTS).',
-	unsupported: 'Speech synthesis is not available on this device. Try the Google Cloud engine.',
+	missingGoogleKey: 'Set a Google Cloud API key in Settings > Joplin Text-to-Speech.',
+	missingAzureKey: 'Set an Azure Speech key and region in Settings > Joplin Text-to-Speech.',
+	unsupported: 'Speech synthesis is not available on this device. Try an online engine.',
 };
 
 export type Strings = typeof en;
@@ -34,9 +35,11 @@ const ptBR: Strings = {
 	empty: 'Esta nota não tem nada para ler.',
 	ready: 'Pronto',
 	errorPrefix: 'Erro: ',
-	missingApiKey: 'Defina uma chave da API do Google Cloud em Configurações > Read Aloud (TTS).',
-	unsupported:
-		'A síntese de voz não está disponível neste dispositivo. Tente o motor Google Cloud.',
+	missingGoogleKey:
+		'Defina uma chave da API do Google Cloud em Configurações > Joplin Text-to-Speech.',
+	missingAzureKey:
+		'Defina a chave e a região do Azure Speech em Configurações > Joplin Text-to-Speech.',
+	unsupported: 'A síntese de voz não está disponível neste dispositivo. Tente um motor online.',
 };
 
 const dictionaries: Record<string, Strings> = { en, pt: ptBR };

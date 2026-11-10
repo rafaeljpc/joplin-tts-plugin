@@ -6,7 +6,7 @@ During the design session four prototype screens were generated (HTML rendered t
 
 1. **Desktop idle** — 🔊 button in the note toolbar; panel with voice, play, speed and progress.
 2. **Desktop reading** — current sentence highlighted in the note, pause button, 1.25× speed and "Sentence 3 of 8".
-3. **Settings** — speech engine (system or Google Cloud TTS), voice, default speed, API key and reading options.
+3. **Settings** — speech engine (system, Google Translate, Azure or Google Cloud TTS), voice, default speed, API key and reading options.
 4. **Android** — bottom-panel player with the current sentence, play/pause, speeds and voice selector. Shows the **ideal case**; on Android the API-based engine may be needed.
 
 ### Desktop idle
@@ -29,7 +29,7 @@ During the design session four prototype screens were generated (HTML rendered t
 
 | Prototype element                        | Status                                                            |
 | ---------------------------------------- | ----------------------------------------------------------------- |
-| Note toolbar button                      | Implemented (`tts.readNote`, `ToolbarButtonLocation.NoteToolbar`) |
+| Toolbar button (note + editor toolbars)  | Implemented (`tts.readNote`, `ToolbarButtonLocation.NoteToolbar`) |
 | Panel with voice, play/pause, speed      | Implemented                                                       |
 | Previous / next / stop                   | Implemented (extra compared to the mockup)                        |
 | "Sentence N of M" + progress bar         | Implemented                                                       |

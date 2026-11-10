@@ -38,6 +38,18 @@ Two separate problems:
 
 Alternatives outside the plugin: iOS "Speak Screen"/"Spoken Content", or the Web Clipper/export to a reading app.
 
+## Online engines added after the first field test
+
+The first test on desktop showed that only the offline system voices were reachable, while the [Read Aloud browser extension](https://github.com/Read-Aloud/read-aloud) offers many more and better voices. v0.1 therefore ships these online engines (desktop webview; Android/iOS still depend on the points above):
+
+| Engine           | Access                                   | Notes                                                                                                                                                                                                         |
+| ---------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google Translate | Free, no key                             | Unofficial `translate_tts` endpoint played through `<audio>` (no CORS needed). One voice per language, ~180 characters per request, so long sentences are chunked. Can change or stop working without notice. |
+| Microsoft Azure  | Official REST API, user's key and region | Neural voices. CORS is open on the Speech endpoints, so `fetch` works from the webview. Free tier: 500,000 characters per month.                                                                              |
+| Google Cloud TTS | Official API, user's key                 | Wavenet/Neural2 voices.                                                                                                                                                                                       |
+
+**Not included: Microsoft Edge's free "read aloud" voices.** Those are reached through an undocumented WebSocket service that only accepts requests presenting a browser extension's identity (a spoofed `Origin` and a time-based token), and it has been reported as blocked for browser-based clients. Implementing it would mean impersonating Microsoft's client, so the official Azure API is used for Microsoft voices instead.
+
 ## Recommendation
 
 Do **desktop first** with `speechSynthesis`. In parallel, build the "audio via API" engine (Google Cloud TTS, or Piper compiled to WASM, which is offline). This second engine serves Android and iPhone with the same code, swapping only the provider. Piper appears on the Joplin forum as an idea, but no ready-made example is known.

@@ -1,23 +1,17 @@
+import { AudioSlot, CreateAudio } from './audioSlot';
 import { SpeakOptions, TtsEngine, Voice } from './types';
+
+export type { AudioLike } from './audioSlot';
 
 const BASE_URL = 'https://texttospeech.googleapis.com/v1';
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
-export interface AudioLike {
-	playbackRate: number;
-	preservesPitch?: boolean;
-	onended: HTMLMediaElement['onended'];
-	onerror: HTMLMediaElement['onerror'];
-	play(): Promise<void> | void;
-	pause(): void;
-}
-
 export interface GoogleCloudOptions {
 	apiKey: string;
 	languageCode: string;
 	fetchFn: FetchFn;
-	createAudio: (src: string) => AudioLike;
+	createAudio: CreateAudio;
 }
 
 interface GoogleVoice {
@@ -30,10 +24,12 @@ interface GoogleVoice {
  * Audio is played through an <audio> element, speed via `playbackRate`.
  */
 export class GoogleCloudEngine implements TtsEngine {
-	private current: AudioLike | null = null;
-	private cancelCurrent: (() => void) | null = null;
+	private slot: AudioSlot;
+	private generation = 0;
 
-	constructor(private options: GoogleCloudOptions) {}
+	constructor(private options: GoogleCloudOptions) {
+		this.slot = new AudioSlot(options.createAudio);
+	}
 
 	async listVoices(): Promise<Voice[]> {
 		const { apiKey, languageCode, fetchFn } = this.options;
@@ -48,7 +44,8 @@ export class GoogleCloudEngine implements TtsEngine {
 	}
 
 	async speak(text: string, { voiceId, rate }: SpeakOptions): Promise<void> {
-		const { apiKey, languageCode, fetchFn, createAudio } = this.options;
+		const { apiKey, languageCode, fetchFn } = this.options;
+		const generation = this.generation;
 		const body = {
 			input: { text },
 			voice: voiceId ? { languageCode, name: voiceId } : { languageCode },
@@ -63,35 +60,15 @@ export class GoogleCloudEngine implements TtsEngine {
 			},
 		);
 		const data = await this.parse<{ audioContent?: string }>(response);
-		if (!data.audioContent) throw new Error('Google TTS returned no audio');
-
 		// A cancel that arrived while the request was in flight must win.
-		return new Promise<void>((resolve, reject) => {
-			const audio = createAudio(`data:audio/mp3;base64,${data.audioContent}`);
-			audio.playbackRate = rate;
-			audio.preservesPitch = true;
-			audio.onended = () => this.finish(audio, resolve);
-			audio.onerror = () => this.finish(audio, () => reject(new Error('Audio playback failed')));
-			this.current = audio;
-			this.cancelCurrent = () => this.finish(audio, resolve);
-			Promise.resolve(audio.play()).catch((e: unknown) =>
-				this.finish(audio, () => reject(e instanceof Error ? e : new Error(String(e)))),
-			);
-		});
+		if (generation !== this.generation) return;
+		if (!data.audioContent) throw new Error('Google TTS returned no audio');
+		await this.slot.play(`data:audio/mp3;base64,${data.audioContent}`, rate);
 	}
 
 	cancel(): void {
-		this.cancelCurrent?.();
-	}
-
-	private finish(audio: AudioLike, done: () => void): void {
-		if (this.current !== audio) return;
-		this.current = null;
-		this.cancelCurrent = null;
-		audio.onended = null;
-		audio.onerror = null;
-		audio.pause();
-		done();
+		this.generation++;
+		this.slot.cancel();
 	}
 
 	private async parse<T>(response: Response): Promise<T> {
