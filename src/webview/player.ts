@@ -23,7 +23,7 @@ export interface WebviewScope {
 	navigator: { language?: string };
 }
 
-export const RATE_CHOICES = [0.75, 1, 1.25, 1.5, 2];
+export const RATE_CHOICES = [0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 
 /** Engine used when the selected engine cannot work; every call explains why. */
 class UnavailableEngine implements TtsEngine {

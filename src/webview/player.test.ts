@@ -193,7 +193,7 @@ describe('initPlayer', () => {
 		expect(voices).toEqual([t.defaultVoice, 'Alpha (en-US)', 'Bravo (pt-BR)']);
 		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('a');
 		const rates = [...q('.tts-rate').querySelectorAll('option')].map((o) => o.textContent);
-		expect(rates).toEqual(['0.75×', '1×', '1.1×', '1.25×', '1.5×', '2×']);
+		expect(rates).toEqual(['0.75×', '1×', '1.1×', '1.25×', '1.5×', '2×', '2.5×', '3×']);
 		expect(q<HTMLSelectElement>('.tts-rate').value).toBe('1.1');
 	});
 
