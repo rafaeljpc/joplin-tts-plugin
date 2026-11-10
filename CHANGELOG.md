@@ -12,6 +12,7 @@ All notable changes to this project are documented here. Format based on
 
 ### Changed
 
+- `npm run version:set -- X.Y.Z[-dev]` sets the version in `package.json`, `package-lock.json` and the manifest at once; development of a version starts at `X.Y.Z-dev` so local packages are identifiable, and the release workflow refuses to publish a `-dev` version.
 - Release automation: merging a new version into `main` creates the tag and publishes the GitHub release with the `.jpl`; the notes come from this changelog.
 
 ## [0.2.0] - 2026-11-10

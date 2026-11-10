@@ -22,10 +22,20 @@ npm run validate
 
 This runs ESLint, Prettier, the TypeScript check and Jest. Coverage thresholds (100% statements/lines/functions, 95% branches) must hold. New behavior needs tests.
 
+## Starting a version
+
+The first commit of the work on a new version sets its **development version**, so every local package (`npm run dist`) is identifiable as a pre-release in Joplin's plugin list:
+
+```bash
+npm run version:set -- 0.3.0-dev   # package.json, package-lock.json and src/manifest.json together
+```
+
+The release workflow refuses to publish a `-dev` version, so it cannot reach `main` by accident.
+
 ## Releasing
 
 1. `git checkout -b release/x.y.z develop`
-2. Bump the version in `package.json`, `package-lock.json` **and** `src/manifest.json` (they must match) and turn the `[Unreleased]` section of `CHANGELOG.md` into `[x.y.z] - date` (the release notes come from it, and an empty section fails the release).
+2. `npm run version:set -- x.y.z` (drops the `-dev` suffix in all three files) and turn the `[Unreleased]` section of `CHANGELOG.md` into `[x.y.z] - date` (the release notes come from it, and an empty section fails the release).
 3. Run `npm run validate`, push the branch and merge it into `main` (PR or local merge, both work).
 4. **That merge is the release**: the workflow tags `vX.Y.Z` and publishes it. Follow it in the Actions tab.
 5. Merge `release/x.y.z` back into `develop`.

@@ -32,6 +32,9 @@ jobs:
           manifest=$(node -p "require('./src/manifest.json').version")
           pkg=$(node -p "require('./package.json').version")
           [ "$manifest" = "$pkg" ] || { echo "::error::Version mismatch: manifest=$manifest package=$pkg"; exit 1; }
+          case "$manifest" in
+            *-dev) echo "::error::Version $manifest is a development version and must not reach main; run 'npm run version:set -- X.Y.Z' on the release branch"; exit 1 ;;
+          esac
           echo "version=$manifest" >> "$GITHUB_OUTPUT"
           if git rev-parse -q --verify "refs/tags/v$manifest" > /dev/null; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
