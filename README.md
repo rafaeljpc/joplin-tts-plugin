@@ -1,7 +1,8 @@
 # Read Aloud (TTS) — Joplin plugin
 
 [![CI](https://github.com/rafaeljpc/joplin-tts-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/rafaeljpc/joplin-tts-plugin/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/rafaeljpc/joplin-tts-plugin/branch/develop/graph/badge.svg)](https://codecov.io/gh/rafaeljpc/joplin-tts-plugin)
+![Coverage](.github/badges/coverage.svg)
+![Branch coverage](.github/badges/branches.svg)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Reads the open note aloud, **sentence by sentence**, with a player panel: voice selection, play/pause, previous/next/stop and playback speed.
