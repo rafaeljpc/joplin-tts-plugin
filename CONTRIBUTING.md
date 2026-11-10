@@ -4,11 +4,13 @@
 
 | Branch      | Purpose                                                                                             |
 | ----------- | --------------------------------------------------------------------------------------------------- |
-| `main`      | Released code only. Every commit on `main` is a release.                                            |
+| `main`      | Released code only. Protected: changes arrive **only through pull requests** (no direct push).      |
 | `develop`   | Integration branch. Feature PRs target this branch.                                                 |
 | `feature/*` | New work, branched from `develop`, merged back via PR.                                              |
 | `release/*` | Release preparation from `develop` (version bump, changelog). Merged into `main` **and** `develop`. |
 | `hotfix/*`  | Urgent fixes branched from `main`, merged into `main` **and** `develop`.                            |
+
+`main` rejects direct pushes, force-pushes and deletion, for everyone including the owner. Releases and hotfixes reach it through a pull request.
 
 Releases are published **automatically when a version reaches `main`**: the release workflow reads the version in `src/manifest.json`, and if it has no tag yet it validates, builds the `.jpl`, creates the tag `vX.Y.Z` and publishes a GitHub release (notes taken from `CHANGELOG.md`). Do not tag by hand.
 
@@ -38,11 +40,11 @@ The release workflow refuses to publish a `-dev` version, so it cannot reach `ma
 
 1. `git checkout -b release/x.y.z develop`
 2. `npm run version:set -- x.y.z` (drops the `-dev` suffix in all three files) and turn the `[Unreleased]` section of `CHANGELOG.md` into `[x.y.z] - date` (the release notes come from it, and an empty section fails the release).
-3. Run `npm run validate`, push the branch and merge it into `main` (PR or local merge, both work).
-4. **That merge is the release**: the workflow tags `vX.Y.Z` and publishes it. Follow it in the Actions tab.
+3. Run `npm run validate`, push the branch and open a pull request `release/x.y.z` → `main`. Merge it with a merge commit once CI is green.
+4. **Merging that PR is the release**: the workflow tags `vX.Y.Z` and publishes it. Follow it in the Actions tab.
 5. Merge `release/x.y.z` back into `develop`.
 
-A merge into `main` that does not change the version (a docs fix) releases nothing.
+A pull request merged into `main` that does not change the version (a docs fix) releases nothing.
 
 ## Design docs
 
