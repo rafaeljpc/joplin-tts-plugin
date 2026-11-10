@@ -64,11 +64,36 @@ describe('buildSentences', () => {
 	});
 });
 
+describe('highlights', () => {
+	it('maps every sentence to its line and columns, and the title to nothing', () => {
+		const body = ['# **Hi** there. Bye.', '', 'Next [one](x.io).'].join('\n');
+		const plan = planReading({ title: 'T', body }, options, null);
+		expect(plan.sentences).toEqual(['T.', 'Hi there.', 'Bye.', 'Next one.']);
+		expect(plan.highlights).toEqual([
+			null,
+			{ line: 0, from: 4, to: 15 },
+			{ line: 0, from: 16, to: 20 },
+			{ line: 2, from: 0, to: 17 },
+		]);
+	});
+
+	it('falls back to the whole line when a sentence cannot be located', () => {
+		const sentences = buildSentences(
+			{ title: 'T', body: 'Some text.' },
+			{ ...options, readTitle: false },
+		);
+		expect(sentences[0].span).toEqual({ from: 0, to: 10 });
+		// A line that the converter changed in a way the locator cannot follow.
+		const odd = planReading({ title: 'T', body: '1) 2) numbers' }, options, null);
+		expect(odd.highlights[1]).not.toBeNull();
+	});
+});
+
 describe('startIndexForCursor', () => {
 	const sentences: Sentence[] = [
-		{ text: 'Aaaa.', line: 0 },
-		{ text: 'Bbbb.', line: 0 },
-		{ text: 'Cccc.', line: 3 },
+		{ text: 'Aaaa.', line: 0, span: null },
+		{ text: 'Bbbb.', line: 0, span: null },
+		{ text: 'Cccc.', line: 3, span: null },
 	];
 
 	it('returns 0 when there is nothing to read', () => {
@@ -119,13 +144,18 @@ describe('planReading', () => {
 			cursor: { line: 0, column: 0 },
 			selection: '**Bold** text. More.',
 		});
-		expect(plan).toEqual({ sentences: ['Bold text.', 'More.'], startIndex: 0 });
+		expect(plan).toEqual({
+			sentences: ['Bold text.', 'More.'],
+			startIndex: 0,
+			highlights: [null, null],
+		});
 	});
 
 	it('reads only a viewer selection as is', () => {
 		expect(planReading(note, options, { source: 'viewer', selection: ' Chosen bit. ' })).toEqual({
 			sentences: ['Chosen bit.'],
 			startIndex: 0,
+			highlights: [null],
 		});
 	});
 
@@ -141,5 +171,18 @@ describe('planReading', () => {
 
 	it('ignores a blank viewer selection', () => {
 		expect(planReading(note, options, { source: 'viewer', selection: '  ' }).startIndex).toBe(0);
+	});
+});
+
+describe('highlights when a sentence cannot be located', () => {
+	afterEach(() => jest.dontMock('./locate'));
+
+	it('falls back to the whole line', () => {
+		jest.isolateModules(() => {
+			jest.doMock('./locate', () => ({ locateInLine: () => null }));
+			const { planReading: plan } = require('./plan');
+			const result = plan({ title: 'T', body: 'Some text.' }, options, null);
+			expect(result.highlights).toEqual([null, { line: 0, from: null, to: null }]);
+		});
 	});
 });

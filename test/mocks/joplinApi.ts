@@ -23,7 +23,7 @@ const joplin = {
 		toolbarButtons: { create: fn() },
 		menuItems: { create: fn() },
 	},
-	commands: { register: fn() },
+	commands: { register: fn(), execute: fn() },
 	contentScripts: { register: fn(), onMessage: fn() },
 	workspace: { selectedNote: fn(), onNoteSelectionChange: fn() },
 };

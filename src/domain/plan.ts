@@ -1,3 +1,4 @@
+import { locateInLine, Span } from './locate';
 import { markdownToLines, markdownToPlainText } from './markdown';
 import { splitSentences } from './sentences';
 
@@ -5,6 +6,15 @@ export interface Sentence {
 	text: string;
 	/** 0-based line of the note body the sentence comes from; -1 for the title. */
 	line: number;
+	/** Where the sentence sits inside that raw Markdown line, when it could be located. */
+	span: Span | null;
+}
+
+/** What to highlight in the editor for a sentence; null columns mean the whole line. */
+export interface HighlightSpan {
+	line: number;
+	from: number | null;
+	to: number | null;
 }
 
 /** The last thing the user did in the editor or in the rendered viewer. */
@@ -16,6 +26,8 @@ export interface ReadingPlan {
 	sentences: string[];
 	/** Index of the sentence where reading starts. */
 	startIndex: number;
+	/** Where each sentence is in the note; null when unknown (title, selections). */
+	highlights: (HighlightSpan | null)[];
 }
 
 export interface PlanNote {
@@ -54,11 +66,17 @@ export function buildSentences(note: PlanNote, options: PlanOptions): Sentence[]
 	const result: Sentence[] = [];
 	if (options.readTitle) {
 		for (const text of splitSentences(note.title.replace(/[.!?…]*$/, '.'), options.language)) {
-			result.push({ text, line: -1 });
+			result.push({ text, line: -1, span: null });
 		}
 	}
+	const rawLines = note.body.split(/\r\n|\r|\n/);
 	markdownToLines(note.body).forEach((line, index) => {
-		for (const text of splitSentences(line, options.language)) result.push({ text, line: index });
+		let column = 0;
+		for (const text of splitSentences(line, options.language)) {
+			const span = locateInLine(rawLines[index], text, column);
+			if (span) column = span.to;
+			result.push({ text, line: index, span });
+		}
 	});
 	return result;
 }
@@ -106,16 +124,22 @@ export function planReading(
 		// Editor selections are raw Markdown; viewer selections are already plain text.
 		const text = interaction.source === 'editor' ? markdownToPlainText(selection) : selection;
 		const sentences = splitSentences(text, options.language);
-		if (sentences.length > 0) return { sentences, startIndex: 0 };
+		if (sentences.length > 0) {
+			return { sentences, startIndex: 0, highlights: sentences.map(() => null) };
+		}
 	}
 	const all = buildSentences(note, options);
 	const sentences = all.map((s) => s.text);
+	const highlights = all.map((s) =>
+		s.line < 0 ? null : { line: s.line, from: s.span?.from ?? null, to: s.span?.to ?? null },
+	);
 	if (interaction?.source === 'editor') {
 		const rawLine = note.body.split(/\r\n|\r|\n/)[interaction.cursor.line] ?? '';
 		return {
 			sentences,
 			startIndex: startIndexForCursor(all, interaction.cursor, rawLine.length),
+			highlights,
 		};
 	}
-	return { sentences, startIndex: 0 };
+	return { sentences, startIndex: 0, highlights };
 }
