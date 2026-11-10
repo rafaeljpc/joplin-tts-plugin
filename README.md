@@ -45,9 +45,11 @@ npm run dist       # builds publish/com.rafaeljpc.joplin-tts.jpl
 Project layout:
 
 ```
-src/lib/        pure logic (markdown, sentences, player, engines, settings, i18n)
-src/webview/    player UI that runs inside the Joplin panel
-src/plugin.ts   Joplin integration (panel, commands, settings)
+src/domain/       pure logic: types and ports, markdown, sentences, reading plan, settings
+src/application/  player state machine, plugin <-> panel messages
+src/adapters/     speech engines (Web Speech, Google Translate, Azure, Google Cloud)
+src/webview/      player UI that runs inside the Joplin panel
+src/plugin.ts     Joplin integration and composition root (panel, commands, settings)
 test/mocks/     Joplin API mock for Jest
 doc/spec/       design documentation
 ```

@@ -1,4 +1,4 @@
-import { SpeakOptions, TtsEngine, Voice } from './types';
+import { SpeakOptions, TtsEngine, Voice } from '../domain/types';
 
 const VOICES_TIMEOUT_MS = 1500;
 

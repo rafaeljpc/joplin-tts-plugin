@@ -5,16 +5,17 @@ import {
 	SettingItemType,
 	ToolbarButtonLocation,
 } from 'api/types';
-import { EDITOR_SCRIPT_ID, VIEWER_SCRIPT_ID } from './lib/ids';
-import { Interaction, parseInteraction, planReading } from './lib/plan';
+import { EDITOR_SCRIPT_ID, VIEWER_SCRIPT_ID } from './application/ids';
+import { Interaction, parseInteraction, planReading } from './domain/plan';
 import {
 	DEFAULT_SETTINGS,
 	normalizeSettings,
 	SETTING_KEYS,
 	SETTINGS_SECTION,
 	settingKey,
-} from './lib/settings';
-import { PanelToPluginMessage, PluginToPanelMessage, Settings } from './lib/types';
+} from './domain/settings';
+import { PanelToPluginMessage, PluginToPanelMessage } from './application/messages';
+import { Settings } from './domain/types';
 
 export const COMMAND_READ = 'tts.readNote';
 export const COMMAND_STOP = 'tts.stop';

@@ -1,4 +1,4 @@
-import { VIEWER_SCRIPT_ID } from '../lib/ids';
+import { VIEWER_SCRIPT_ID } from '../application/ids';
 
 export interface ViewerApi {
 	postMessage(contentScriptId: string, message: unknown): Promise<unknown>;
