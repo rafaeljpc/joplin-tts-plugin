@@ -457,17 +457,15 @@ describe('Piper voices', () => {
 	});
 
 	it('does not open the screen when the saved voice is downloaded', async () => {
-		const installed = jest
-			.spyOn(PiperStorage.prototype, 'installed')
-			.mockResolvedValue([
-				{
-					id: 'pt_BR-faber-medium',
-					name: 'faber',
-					language: 'pt_BR',
-					quality: 'medium',
-					sizeBytes: 1,
-				},
-			]);
+		const installed = jest.spyOn(PiperStorage.prototype, 'installed').mockResolvedValue([
+			{
+				id: 'pt_BR-faber-medium',
+				name: 'faber',
+				language: 'pt_BR',
+				quality: 'medium',
+				sizeBytes: 1,
+			},
+		]);
 		stored['tts.engine'] = 'azure';
 		stored['tts.voice'] = 'pt_BR-faber-medium';
 		await start();

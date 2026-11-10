@@ -1,11 +1,18 @@
 import { AzureSpeechEngine } from '../adapters/azureEngine';
 import { GoogleCloudEngine } from '../adapters/googleCloudEngine';
 import { GoogleTranslateEngine } from '../adapters/googleTranslateEngine';
+import { PiperEngine } from '../adapters/piperEngine';
 import { getStrings, Strings } from './i18n';
 import { createView, PlayerView } from './playerView';
+import { createVoicePicker, VoicePickerView } from './voicePickerView';
+import { DialogRequest, DialogState } from '../application/piperDialog';
 import { PlayerController } from '../application/player';
 import { DEFAULT_SETTINGS } from '../domain/settings';
-import { PanelToPluginMessage, PluginToPanelMessage } from '../application/messages';
+import {
+	PanelToPluginMessage,
+	PiperPickerDoneReply,
+	PluginToPanelMessage,
+} from '../application/messages';
 import { Settings, TtsEngine, Voice } from '../domain/types';
 import { WebSpeechEngine } from '../adapters/webSpeechEngine';
 
@@ -25,6 +32,9 @@ export interface WebviewScope {
 
 export const RATE_CHOICES = [0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 
+/** How often the open voice screen asks the plugin for download progress. */
+export const PICKER_POLL_MS = 500;
+
 /** Engine used when the selected engine cannot work; every call explains why. */
 class UnavailableEngine implements TtsEngine {
 	constructor(private reason: string) {}
@@ -37,7 +47,13 @@ class UnavailableEngine implements TtsEngine {
 	cancel(): void {}
 }
 
-export function createEngine(settings: Settings, scope: WebviewScope, t: Strings): TtsEngine {
+export function createEngine(
+	settings: Settings,
+	scope: WebviewScope,
+	t: Strings,
+	/** Sends a message to the plugin and resolves with its answer (needed by Piper). */
+	request?: (message: PanelToPluginMessage) => Promise<unknown>,
+): TtsEngine {
 	const fetchFn = (url: string, init?: RequestInit) => scope.fetch(url, init);
 	const createAudio = (src: string) => new scope.Audio(src);
 	switch (settings.engine) {
@@ -62,6 +78,9 @@ export function createEngine(settings: Settings, scope: WebviewScope, t: Strings
 			});
 		case 'google-translate':
 			return new GoogleTranslateEngine({ languageCode: settings.language, createAudio });
+		case 'piper':
+			if (!request) return new UnavailableEngine(t.unsupported);
+			return new PiperEngine({ request, createAudio });
 		default:
 			if (!scope.speechSynthesis || !scope.SpeechSynthesisUtterance) {
 				return new UnavailableEngine(t.unsupported);
@@ -83,6 +102,7 @@ function createSettingsManager(
 	view: PlayerView,
 	scope: WebviewScope,
 	t: Strings,
+	request: (message: PanelToPluginMessage) => Promise<unknown>,
 ) {
 	let settings: Settings = { ...DEFAULT_SETTINGS };
 	// Ids of the voices of the current engine; null when listing failed.
@@ -118,7 +138,7 @@ function createSettingsManager(
 			const replaceEngine = first || engineSignature(next) !== engineSignature(settings);
 			settings = next;
 			if (replaceEngine) {
-				controller.setEngine(createEngine(settings, scope, t));
+				controller.setEngine(createEngine(settings, scope, t, request));
 				view.showError(null);
 				await fillVoices();
 			}
@@ -126,6 +146,11 @@ function createSettingsManager(
 			// A voice saved for another engine is unknown here: fall back to the default.
 			controller.setVoice(voiceIds && !voiceIds.has(settings.voice) ? '' : settings.voice);
 			fillRates();
+		},
+		/** Lists the voices again (after voices were downloaded or removed) and keeps the selected one. */
+		async refreshVoices() {
+			await fillVoices();
+			controller.setVoice(voiceIds && !voiceIds.has(settings.voice) ? '' : settings.voice);
 		},
 		/** Applies a change made by the user in the panel. */
 		change(patch: Partial<Pick<Settings, 'rate' | 'voice'>>) {
@@ -139,7 +164,8 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	const root = doc.getElementById('tts-root');
 	if (!root) throw new Error('Missing #tts-root element');
 
-	const controller = new PlayerController(createEngine({ ...DEFAULT_SETTINGS }, scope, t));
+	const request = (message: PanelToPluginMessage) => api.postMessage(message);
+	const controller = new PlayerController(createEngine({ ...DEFAULT_SETTINGS }, scope, t, request));
 	let title = '';
 
 	const save = (patch: Partial<Settings>) => void api.postMessage({ type: 'saveSettings', patch });
@@ -171,7 +197,39 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 			save({ voice });
 		},
 	});
-	const settingsManager = createSettingsManager(controller, view, scope, t);
+	const settingsManager = createSettingsManager(controller, view, scope, t, request);
+
+	// The Piper voice screen, over the player: voices are downloaded and chosen here.
+	const refreshPicker = async (message: DialogRequest = { type: 'state' }) => {
+		picker.render(
+			(await api.postMessage({ type: 'piperPicker', request: message })) as DialogState,
+		);
+	};
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	const picker: VoicePickerView = createVoicePicker(doc, root, t, {
+		onRequest: (message) => void refreshPicker(message),
+		async onDone(confirm) {
+			const reply = (await api.postMessage({
+				type: 'piperPickerDone',
+				confirm,
+			})) as PiperPickerDoneReply | undefined;
+			if (reply && !reply.ok) picker.render(reply.state);
+			else closePicker(true);
+		},
+	});
+	const openPicker = (revertible: boolean) => {
+		controller.stop();
+		picker.show(revertible);
+		void refreshPicker();
+		// Download progress has no push channel: ask for it while the screen is open.
+		pollTimer ??= setInterval(() => void refreshPicker(), PICKER_POLL_MS);
+	};
+	const closePicker = (voicesChanged: boolean) => {
+		picker.hide();
+		if (pollTimer !== null) clearInterval(pollTimer);
+		pollTimer = null;
+		if (voicesChanged) void settingsManager.refreshVoices();
+	};
 
 	const handleMessage = (message: PluginToPanelMessage) => {
 		switch (message.type) {
@@ -189,6 +247,12 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 				break;
 			case 'stop':
 				controller.stop();
+				break;
+			case 'openVoicePicker':
+				openPicker(message.revertible);
+				break;
+			case 'closeVoicePicker':
+				closePicker(false);
 				break;
 		}
 	};

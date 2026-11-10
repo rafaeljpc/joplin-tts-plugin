@@ -181,10 +181,15 @@ describe('createPiper', () => {
 
 		it('explains when downloads or the runtime cannot be used', async () => {
 			delete g.fetch;
-			const piper = await createPiper(async () => settings(), { fs: fsWith('pt_BR-faber-medium') });
+			const piper = await createPiper(async () => settings(), {
+				dir: require('path').join('/data', 'piper'),
+				fs: fsWith('pt_BR-faber-medium'),
+			});
+			loadableRuntime(piper);
 			await expect(piper.storage.fetchCatalog()).rejects.toThrow('Downloads are not available');
-			await expect(piper.synthesize('x', 'pt_BR-faber-medium')).resolves.toMatchObject({
+			await expect(piper.synthesize('x', 'pt_BR-faber-medium')).resolves.toEqual({
 				ok: false,
+				error: 'The Piper runtime cannot be loaded here',
 			});
 		});
 

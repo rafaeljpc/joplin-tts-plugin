@@ -35,20 +35,22 @@
 | 0.1     | Panel, commands, Web Speech, Google Translate, Azure, Google Cloud TTS, tests with 100% coverage (**this repository**)                       |
 | 0.2     | Prefetch the next sentence's audio (online engines) to remove gaps (**done**); start at the cursor / read only the selection (done in 0.1.x) |
 | 0.3     | Highlight the current sentence inside the note (editor and viewer) (**done**); release published automatically on merge to `main`            |
-| 0.4     | Offline Piper/WASM engine, with voices downloaded by the user (design below; idea from the Joplin forum, no ready-made example known)        |
+| 0.4     | Offline Piper engine with voices downloaded by the user (**done**, to be checked in a real Joplin; design in the section below)              |
 | ≥ 1.0   | Publish to the official catalog; submit as a "recommended" plugin for iOS; evaluate a native Android TTS API (contribution to Joplin core)   |
 
 ## 0.4 offline Piper engine: design decisions
 
-Design only; nothing is implemented yet. The first step is a proof of concept.
+| Decision                                                                                                                                             | Reason                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **No voice is bundled or downloaded by default.** The user picks and downloads each voice                                                            | Keeps the `.jpl` small; voices are about 60 MB each                       |
+| Choosing the Piper engine opens a voice screen that cannot be left until a voice is downloaded and selected, or the user goes back to another engine | The engine is unusable without a voice                                    |
+| The voice list shows the **size in MB** of each voice (from the catalog)                                                                             | The user decides what to download                                         |
+| Voices are stored in a **local folder** (the plugin's data directory)                                                                                | Persistent, and offline after the first download                          |
+| Without internet and with no voice downloaded, no voice can be selected, so the user is **forced back to another engine**                            | Piper is only offline after at least one voice is downloaded              |
+| The voice catalog URL is a **setting**, pre-filled with `rhasspy/piper-voices` on Hugging Face; if it moves, the default is updated                  | The origin may change; users can repoint it                               |
+| The voice screen lives **inside the player panel**, not in a Joplin dialog                                                                           | `joplin.views.dialogs` has no plugin-side `onMessage`                     |
+| Synthesis runs in the **plugin process**; only each sentence's WAV reaches the panel                                                                 | Models are read from a local folder; tens of MB never cross `postMessage` |
+| The WebAssembly runtime (eSpeak, ONNX Runtime) is **downloaded at first use**, pinned by version and **checked against SHA-256**                     | Keeps the `.jpl` small; a changed file is never loaded                    |
+| The eSpeak NG phonemizer (GPL-3.0) is **not bundled** in the plugin                                                                                  | The plugin is MIT; the runtime is fetched from its own distribution       |
 
-| Decision                                                                                                                                                  | Reason                                                       |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **No voice is bundled or downloaded by default.** The user picks and downloads each voice                                                                 | Keeps the `.jpl` small; voices are tens of MB each           |
-| In the setup screen, choosing the Piper engine does not let the user leave until they **download and pick a voice**, or switch to another engine          | The engine is unusable without a voice                       |
-| The voice list shows the **size in MB** of each voice when it is known                                                                                    | The user decides what to download                            |
-| Voices are stored in a **local folder** (the plugin's data directory)                                                                                     | Persistent, and offline after the first download             |
-| Without internet and with no voice downloaded, no voice can be selected, so the user is **forced back to another engine**                                 | Piper is only offline after at least one voice is downloaded |
-| The voice catalog URL is a **setting**, pre-filled with the current Hugging Face repository (`rhasspy/piper-voices`); if it moves, the default is updated | The origin may change; users can repoint it                  |
-
-Open questions for the proof of concept: which Piper/WASM runtime to use (community ports of `onnxruntime-web` exist; maintenance to be checked), whether it runs in Joplin's webview (Web Worker allowed?), and how the plugin writes the downloaded files to its data directory.
+Not verified inside a real Joplin yet (the tests use stand-ins for these): that the plugin sandbox lets the plugin `require` the downloaded runtime scripts and run WebAssembly, `fetch` from the plugin process, and the speed of synthesis on the plugin's thread. Check these first when testing a build.

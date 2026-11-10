@@ -31,20 +31,24 @@ The code follows a layered (ports & adapters) architecture. **Dependencies point
 domain  <-  application  <-  adapters  <-  webview  <-  Joplin entry points
 ```
 
-| Layer / module                                      | Responsibility                                                                                                       | May import                    |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `src/domain/types.ts`                               | Core types and the `TtsEngine` **port**, `Settings`                                                                  | nothing                       |
-| `src/domain/markdown.ts`                            | Markdown → speakable text, line-preserving (`markdownToLines`)                                                       | domain                        |
-| `src/domain/sentences.ts`                           | Sentence splitting (`Intl.Segmenter`, regex fallback)                                                                | domain                        |
-| `src/domain/plan.ts`                                | Reading plan: start at cursor, or read only the selection                                                            | domain                        |
-| `src/domain/chunks.ts`                              | Splits long sentences for engines with a size limit                                                                  | domain                        |
-| `src/domain/settings.ts`                            | Keys, defaults and normalization of settings                                                                         | domain                        |
-| `src/application/player.ts`                         | `PlayerController`: idle/playing/paused state machine (use case)                                                     | domain                        |
-| `src/application/messages.ts`, `ids.ts`             | Plugin ↔ panel message protocol and content-script ids                                                               | domain                        |
-| `src/adapters/*Engine.ts`, `audioSlot.ts`           | `TtsEngine` implementations: Web Speech, Google Translate, Azure, Google Cloud                                       | domain, application           |
-| `src/webview/player.ts`, `playerView.ts`, `i18n.ts` | Panel wiring and engine selection (`player.ts`), DOM view (`playerView.ts`), en / pt-BR strings; runs in the browser | domain, application, adapters |
-| `src/webview/viewerSelection.ts`                    | Reports the selection made in the rendered viewer                                                                    | application                   |
-| `src/plugin.ts`, `index.ts`, content scripts        | Composition root: Joplin API (panel, commands, settings, content scripts)                                            | everything                    |
+| Layer / module                                                             | Responsibility                                                                                                          | May import                    |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `src/domain/types.ts`                                                      | Core types and the `TtsEngine` **port**, `Settings`                                                                     | nothing                       |
+| `src/domain/markdown.ts`                                                   | Markdown → speakable text, line-preserving (`markdownToLines`)                                                          | domain                        |
+| `src/domain/sentences.ts`                                                  | Sentence splitting (`Intl.Segmenter`, regex fallback)                                                                   | domain                        |
+| `src/domain/plan.ts`                                                       | Reading plan: start at cursor, or read only the selection                                                               | domain                        |
+| `src/domain/chunks.ts`                                                     | Splits long sentences for engines with a size limit                                                                     | domain                        |
+| `src/domain/settings.ts`                                                   | Keys, defaults and normalization of settings                                                                            | domain                        |
+| `src/application/player.ts`                                                | `PlayerController`: idle/playing/paused state machine (use case)                                                        | domain                        |
+| `src/application/messages.ts`, `ids.ts`                                    | Plugin ↔ panel message protocol and content-script ids                                                                  | domain                        |
+| `src/application/piperDialog.ts`, `piperStore.ts`                          | Logic of the Piper voice screen (list, download, remove, select) and the `PiperStore` port                              | domain                        |
+| `src/adapters/*Engine.ts`, `audioSlot.ts`                                  | `TtsEngine` implementations: Web Speech, Google Translate, Azure, Google Cloud, Piper                                   | domain, application           |
+| `src/adapters/piperStorage.ts`, `piperSynth.ts`                            | Piper files on disk and downloads (`PiperStore`), and the synthesizer (eSpeak + ONNX); Node side, injected `fs`/`fetch` | domain, application           |
+| `src/domain/piperCatalog.ts`, `piperRuntime.ts`, `wav.ts`                  | Voice catalog parsing, pinned runtime files (SHA-256), WAV encoding                                                     | domain                        |
+| `src/webview/player.ts`, `playerView.ts`, `i18n.ts`                        | Panel wiring and engine selection (`player.ts`), DOM view (`playerView.ts`), en / pt-BR strings; runs in the browser    | domain, application, adapters |
+| `src/webview/viewerSelection.ts`                                           | Reports the selection made in the rendered viewer                                                                       | application                   |
+| `src/webview/voicePickerView.ts`                                           | DOM of the Piper voice screen                                                                                           | domain, application           |
+| `src/plugin.ts`, `piper.ts`, `piperPicker.ts`, `index.ts`, content scripts | Composition root: Joplin API (panel, commands, settings, content scripts), Piper service and voice-screen flow          | everything                    |
 
 Every platform dependency (`speechSynthesis`, `fetch`, `Audio`) is **injected**, which allows testing everything in Jest without Joplin or a real browser.
 
@@ -73,22 +77,28 @@ An engine speaks **one sentence at a time**. `speak` resolves when the sentence 
 
 Plugin → panel:
 
-| `type`     | Fields                           | When                                                        |
-| ---------- | -------------------------------- | ----------------------------------------------------------- |
-| `init`     | `settings`                       | Panel sent `ready`                                          |
-| `settings` | `settings`                       | User changed settings                                       |
-| `load`     | `title`, `sentences`, `autoplay` | "Read note" command (autoplay) or note switch (no autoplay) |
-| `stop`     | —                                | "Stop" command                                              |
+| `type`             | Fields                           | When                                                        |
+| ------------------ | -------------------------------- | ----------------------------------------------------------- |
+| `init`             | `settings`                       | Panel sent `ready`                                          |
+| `settings`         | `settings`                       | User changed settings                                       |
+| `load`             | `title`, `sentences`, `autoplay` | "Read note" command (autoplay) or note switch (no autoplay) |
+| `stop`             | —                                | "Stop" command                                              |
+| `openVoicePicker`  | `revertible`                     | Piper chosen without a voice, or the Piper voices command   |
+| `closeVoicePicker` | —                                | The engine was changed elsewhere                            |
 
 Panel → plugin:
 
-| `type`         | Fields  | Effect                                                                    |
-| -------------- | ------- | ------------------------------------------------------------------------- |
-| `ready`        | —       | Handshake: plugin sends `init` (and any pending `load`)                   |
-| `reload`       | —       | Reloads the current note without autoplay                                 |
-| `saveSettings` | `patch` | Persists the voice/speed chosen in the panel                              |
-| `progress`     | `index` | Sentence being read or paused on (`null` when idle): drives the highlight |
-| `close`        | —       | Hides the panel                                                           |
+| `type`            | Fields            | Effect                                                                    |
+| ----------------- | ----------------- | ------------------------------------------------------------------------- |
+| `ready`           | —                 | Handshake: plugin sends `init` (and any pending `load`)                   |
+| `reload`          | —                 | Reloads the current note without autoplay                                 |
+| `saveSettings`    | `patch`           | Persists the voice/speed chosen in the panel                              |
+| `progress`        | `index`           | Sentence being read or paused on (`null` when idle): drives the highlight |
+| `piperVoices`     | —                 | Answer: the downloaded voices (`{ voices }`)                              |
+| `piperSynthesize` | `text`, `voiceId` | Answer: `{ ok: true, wav }` (base64 WAV) or `{ ok: false, error }`        |
+| `piperPicker`     | `request`         | Voice screen: list / download / remove / select; answer: a `DialogState`  |
+| `piperPickerDone` | `confirm`         | Voice screen closed: confirm the voice or go back to another engine       |
+| `close`           | —                 | Hides the panel (and gives up the voice screen if it is open)             |
 
 The `ready` handshake exists because messages sent before the webview loads are lost. The "read note" command keeps a _pending autoplay_ until `ready` arrives. Switching notes with the panel open reloads **without autoplay**, so audio never starts unexpectedly.
 
@@ -100,6 +110,16 @@ The panel reports every change of the current sentence (`progress`). The plugin 
 
 - **Markdown editor (CodeMirror 6)**: the plugin runs `editor.execCommand` with the command `tts.highlight`, registered by the editor content script. It moves a decoration (`.tts-current-sentence`) over the sentence and scrolls it into view. If a sentence cannot be located, the whole line is highlighted. A selection plan has no line information, so nothing is highlighted in the editor.
 - **Rendered viewer**: a plugin cannot push messages into the rendered note, so `webview/viewerSelection.js` **polls** the plugin every 500 ms (`{ type: 'poll' }` → `{ highlight: text | null }`) and `viewerHighlight.ts` finds that text in the page and marks it with the CSS Custom Highlight API (`::highlight(tts-current)`), without touching the DOM. Browsers without that API simply show no highlight.
+
+## Piper (offline engine)
+
+Piper runs in the **plugin process** (Node), not in the panel: the plugin keeps the model files in a local folder and only the audio of each sentence crosses to the panel, which plays it (`PiperEngine`, a `TtsEngine` like the others, asks the plugin with `piperSynthesize`; the answer of `webviewApi.postMessage` is the handler's return value).
+
+- **Folder** (`<plugin data dir>/piper`): `runtime/` (eSpeak phonemizer and ONNX Runtime, WebAssembly, pinned versions, SHA-256 checked, written atomically) and `voices/<id>/` (`model.onnx`, `model.onnx.json`, `meta.json` written last, so a half download is never listed).
+- **Synthesis** (`PiperSynthesizer`): eSpeak turns the text into phoneme ids (`piper_phonemize`), the voice (ONNX Runtime, `wasm` provider) produces PCM, which becomes a WAV. Requests are queued: one ONNX session cannot run two inferences at once.
+- **Catalog**: `voices.json` of `rhasspy/piper-voices`, read from the **Piper voices URL** setting. It gives each voice's id, locale, quality and file sizes (the MB shown).
+- **Voice screen**: Joplin's dialog API has no plugin-side `onMessage`, so a dialog cannot talk to the plugin; the screen is drawn **inside the player panel** instead (`voicePickerView.ts`, state in `PiperDialogController`, flow in `VoicePickerFlow`). Download progress has no push channel, so the screen asks for the state every 500 ms while it is open.
+- **Gate**: when the engine setting becomes `piper` and the saved voice is not downloaded, the plugin opens the screen (`revertible`). Confirming saves the voice (and the engine); giving up, or closing the panel, restores the previous non-Piper engine. Reading with Piper and no downloaded voice opens the screen instead of reading.
 
 ## Reading the note
 
