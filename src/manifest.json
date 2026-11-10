@@ -2,7 +2,7 @@
   "manifest_version": 1,
   "id": "com.rafaeljpc.joplin-tts",
   "app_min_version": "3.0",
-  "version": "0.3.1",
+  "version": "0.4.0-dev",
   "name": "Joplin Text-to-Speech",
   "description": "Read the open note aloud, sentence by sentence, with voice selection, play/pause and speed controls.",
   "author": "rafaeljpc",
