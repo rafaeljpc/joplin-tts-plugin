@@ -31,20 +31,20 @@ The code follows a layered (ports & adapters) architecture. **Dependencies point
 domain  <-  application  <-  adapters  <-  webview  <-  Joplin entry points
 ```
 
-| Layer / module                               | Responsibility                                                                 | May import                    |
-| -------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------- |
-| `src/domain/types.ts`                        | Core types and the `TtsEngine` **port**, `Settings`                            | nothing                       |
-| `src/domain/markdown.ts`                     | Markdown → speakable text, line-preserving (`markdownToLines`)                 | domain                        |
-| `src/domain/sentences.ts`                    | Sentence splitting (`Intl.Segmenter`, regex fallback)                          | domain                        |
-| `src/domain/plan.ts`                         | Reading plan: start at cursor, or read only the selection                      | domain                        |
-| `src/domain/chunks.ts`                       | Splits long sentences for engines with a size limit                            | domain                        |
-| `src/domain/settings.ts`                     | Keys, defaults and normalization of settings                                   | domain                        |
-| `src/application/player.ts`                  | `PlayerController`: idle/playing/paused state machine (use case)               | domain                        |
-| `src/application/messages.ts`, `ids.ts`      | Plugin ↔ panel message protocol and content-script ids                         | domain                        |
-| `src/adapters/*Engine.ts`, `audioSlot.ts`    | `TtsEngine` implementations: Web Speech, Google Translate, Azure, Google Cloud | domain, application           |
-| `src/webview/player.ts`, `i18n.ts`           | Panel UI, engine wiring, en / pt-BR strings (runs in the browser)              | domain, application, adapters |
-| `src/webview/viewerSelection.ts`             | Reports the selection made in the rendered viewer                              | application                   |
-| `src/plugin.ts`, `index.ts`, content scripts | Composition root: Joplin API (panel, commands, settings, content scripts)      | everything                    |
+| Layer / module                                      | Responsibility                                                                                                       | May import                    |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `src/domain/types.ts`                               | Core types and the `TtsEngine` **port**, `Settings`                                                                  | nothing                       |
+| `src/domain/markdown.ts`                            | Markdown → speakable text, line-preserving (`markdownToLines`)                                                       | domain                        |
+| `src/domain/sentences.ts`                           | Sentence splitting (`Intl.Segmenter`, regex fallback)                                                                | domain                        |
+| `src/domain/plan.ts`                                | Reading plan: start at cursor, or read only the selection                                                            | domain                        |
+| `src/domain/chunks.ts`                              | Splits long sentences for engines with a size limit                                                                  | domain                        |
+| `src/domain/settings.ts`                            | Keys, defaults and normalization of settings                                                                         | domain                        |
+| `src/application/player.ts`                         | `PlayerController`: idle/playing/paused state machine (use case)                                                     | domain                        |
+| `src/application/messages.ts`, `ids.ts`             | Plugin ↔ panel message protocol and content-script ids                                                               | domain                        |
+| `src/adapters/*Engine.ts`, `audioSlot.ts`           | `TtsEngine` implementations: Web Speech, Google Translate, Azure, Google Cloud                                       | domain, application           |
+| `src/webview/player.ts`, `playerView.ts`, `i18n.ts` | Panel wiring and engine selection (`player.ts`), DOM view (`playerView.ts`), en / pt-BR strings; runs in the browser | domain, application, adapters |
+| `src/webview/viewerSelection.ts`                    | Reports the selection made in the rendered viewer                                                                    | application                   |
+| `src/plugin.ts`, `index.ts`, content scripts        | Composition root: Joplin API (panel, commands, settings, content scripts)                                            | everything                    |
 
 Every platform dependency (`speechSynthesis`, `fetch`, `Audio`) is **injected**, which allows testing everything in Jest without Joplin or a real browser.
 
