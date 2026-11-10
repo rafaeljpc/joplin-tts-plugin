@@ -51,6 +51,6 @@ export type PluginToPanelMessage =
 /** Messages sent from the panel webview to the plugin. */
 export type PanelToPluginMessage =
 	| { type: 'ready' }
-	| { type: 'reload' }
+	| { type: 'reload'; autoplay?: boolean }
 	| { type: 'saveSettings'; patch: Partial<Settings> }
 	| { type: 'close' };

@@ -164,7 +164,7 @@ export async function start(): Promise<void> {
 				}
 				break;
 			case 'reload':
-				await loadSelectedNote(false);
+				await loadSelectedNote(message.autoplay ?? false);
 				break;
 			case 'saveSettings':
 				for (const key of SETTING_KEYS) {

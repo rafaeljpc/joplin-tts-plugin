@@ -196,6 +196,15 @@ describe('initPlayer', () => {
 		expect(q<HTMLSelectElement>('.tts-rate').value).toBe('1.1');
 	});
 
+	it('asks the plugin for a fresh plan when play is pressed while idle', async () => {
+		const { send, q, posted, spoken } = setup();
+		await send({ type: 'init', settings: settings() });
+		await send({ type: 'load', title: 'n', sentences: ['One.', 'Two.'], autoplay: false });
+		q<HTMLButtonElement>('.tts-play').click();
+		expect(posted.at(-1)).toEqual({ type: 'reload', autoplay: true });
+		expect(spoken).toHaveLength(0);
+	});
+
 	it('loads a note and plays/pauses/navigates', async () => {
 		const { send, q, spoken, player } = setup();
 		await send({ type: 'init', settings: settings() });

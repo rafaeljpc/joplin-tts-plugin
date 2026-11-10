@@ -214,7 +214,11 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	};
 	playBtn.onclick = () => {
 		showError(null);
-		controller.toggle();
+		// Starting from idle asks the plugin for a fresh plan, so reading begins at
+		// the editor cursor or the current selection. Resume/pause act locally.
+		if (controller.getState().status === 'idle')
+			void api.postMessage({ type: 'reload', autoplay: true });
+		else controller.toggle();
 	};
 	prevBtn.onclick = () => controller.previous();
 	nextBtn.onclick = () => controller.next();

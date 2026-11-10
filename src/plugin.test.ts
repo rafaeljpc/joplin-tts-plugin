@@ -194,6 +194,13 @@ describe('start', () => {
 			expect(sent().at(-1)).toMatchObject({ startIndex: 3 });
 		});
 
+		it('autoplays a reload requested by the play button', async () => {
+			await start();
+			await messageHandler()({ type: 'ready' });
+			await messageHandler()({ type: 'reload', autoplay: true });
+			expect(sent().at(-1)).toMatchObject({ type: 'load', autoplay: true });
+		});
+
 		it('reads only the selection made in the viewer, ignoring invalid messages', async () => {
 			await start();
 			await handler('tts.viewer')({ source: 'viewer', selection: 'Just this.' });
