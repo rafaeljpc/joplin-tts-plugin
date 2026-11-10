@@ -1,6 +1,7 @@
-import { getStrings } from '../lib/i18n';
-import { DEFAULT_SETTINGS } from '../lib/settings';
-import { PluginToPanelMessage, Settings } from '../lib/types';
+import { getStrings } from './i18n';
+import { DEFAULT_SETTINGS } from '../domain/settings';
+import { PluginToPanelMessage } from '../application/messages';
+import { Settings } from '../domain/types';
 import { createEngine, initPlayer, unwrapMessage, WebviewApiLike, WebviewScope } from './player';
 
 const t = getStrings('en');

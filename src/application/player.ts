@@ -1,4 +1,4 @@
-import { TtsEngine, Voice } from './types';
+import { TtsEngine, Voice } from '../domain/types';
 
 export type PlayerStatus = 'idle' | 'playing' | 'paused';
 

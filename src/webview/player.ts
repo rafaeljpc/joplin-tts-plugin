@@ -1,17 +1,13 @@
-import { AzureSpeechEngine } from '../lib/azureEngine';
-import { GoogleCloudEngine } from '../lib/googleCloudEngine';
-import { GoogleTranslateEngine } from '../lib/googleTranslateEngine';
-import { format, getStrings, Strings } from '../lib/i18n';
-import { PlayerController, PlayerState } from '../lib/player';
-import { DEFAULT_SETTINGS } from '../lib/settings';
-import {
-	PanelToPluginMessage,
-	PluginToPanelMessage,
-	Settings,
-	TtsEngine,
-	Voice,
-} from '../lib/types';
-import { WebSpeechEngine } from '../lib/webSpeechEngine';
+import { AzureSpeechEngine } from '../adapters/azureEngine';
+import { GoogleCloudEngine } from '../adapters/googleCloudEngine';
+import { GoogleTranslateEngine } from '../adapters/googleTranslateEngine';
+import { getStrings, Strings } from './i18n';
+import { createView, PlayerView } from './playerView';
+import { PlayerController } from '../application/player';
+import { DEFAULT_SETTINGS } from '../domain/settings';
+import { PanelToPluginMessage, PluginToPanelMessage } from '../application/messages';
+import { Settings, TtsEngine, Voice } from '../domain/types';
+import { WebSpeechEngine } from '../adapters/webSpeechEngine';
 
 export interface WebviewApiLike {
 	postMessage(message: PanelToPluginMessage): Promise<unknown>;
@@ -81,91 +77,23 @@ export function unwrapMessage(raw: unknown): PluginToPanelMessage | null {
 	return typeof type === 'string' ? (candidate as PluginToPanelMessage) : null;
 }
 
-function el<K extends keyof HTMLElementTagNameMap>(
-	doc: Document,
-	tag: K,
-	props: Partial<HTMLElementTagNameMap[K]> & { className?: string },
-	children: (Node | string)[] = [],
-): HTMLElementTagNameMap[K] {
-	const node = doc.createElement(tag);
-	Object.assign(node, props);
-	node.append(...children);
-	return node;
-}
-
-export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewScope) {
-	const t = getStrings(scope.navigator.language);
-	const root = doc.getElementById('tts-root');
-	if (!root) throw new Error('Missing #tts-root element');
-
+/** The settings of the panel and what depends on them (engine, voices, rate). */
+function createSettingsManager(
+	controller: PlayerController,
+	view: PlayerView,
+	scope: WebviewScope,
+	t: Strings,
+) {
 	let settings: Settings = { ...DEFAULT_SETTINGS };
-	const controller = new PlayerController(createEngine(settings, scope, t));
-	let title = '';
-
-	// --- UI -------------------------------------------------------------
-	const titleEl = el(doc, 'div', { className: 'tts-title' });
-	const closeBtn = el(doc, 'button', { className: 'tts-close', title: t.close, textContent: '×' });
-	const sentenceEl = el(doc, 'div', { className: 'tts-sentence', textContent: t.ready });
-	const errorEl = el(doc, 'div', { className: 'tts-error', hidden: true });
-	const prevBtn = el(doc, 'button', { className: 'tts-prev', title: t.previous, textContent: '⏮' });
-	const playBtn = el(doc, 'button', { className: 'tts-play', title: t.play, textContent: '▶' });
-	const nextBtn = el(doc, 'button', { className: 'tts-next', title: t.next, textContent: '⏭' });
-	const stopBtn = el(doc, 'button', { className: 'tts-stop', title: t.stop, textContent: '⏹' });
-	const voiceSelect = el(doc, 'select', { className: 'tts-voice', title: t.voice });
-	const rateSelect = el(doc, 'select', { className: 'tts-rate', title: t.speed });
-	const progress = el(doc, 'progress', { className: 'tts-progress', max: 1, value: 0 });
-	const counter = el(doc, 'div', { className: 'tts-counter' });
-
-	root.replaceChildren(
-		el(doc, 'div', { className: 'tts-header' }, [titleEl, closeBtn]),
-		sentenceEl,
-		errorEl,
-		progress,
-		counter,
-		el(doc, 'div', { className: 'tts-controls' }, [prevBtn, playBtn, nextBtn, stopBtn]),
-		el(doc, 'div', { className: 'tts-options' }, [voiceSelect, rateSelect]),
-	);
-
-	const showError = (message: string | null) => {
-		errorEl.hidden = message === null;
-		errorEl.textContent = message === null ? '' : t.errorPrefix + message;
-	};
-
-	const render = (state: PlayerState) => {
-		const playing = state.status === 'playing';
-		playBtn.textContent = playing ? '⏸' : '▶';
-		playBtn.title = playing ? t.pause : t.play;
-		titleEl.textContent = title || t.title;
-		if (state.total === 0) {
-			sentenceEl.textContent = title ? t.empty : t.ready;
-			counter.textContent = '';
-			progress.value = 0;
-		} else {
-			sentenceEl.textContent = state.sentence;
-			counter.textContent = format(t.sentenceOf, state.index + 1, state.total);
-			progress.value = (state.index + 1) / state.total;
-		}
-		playBtn.disabled = state.total === 0;
-		prevBtn.disabled = stopBtn.disabled = nextBtn.disabled = state.total === 0;
-	};
+	// Ids of the voices of the current engine; null when listing failed.
+	let voiceIds: Set<string> | null = null;
 
 	const fillRates = () => {
 		const rates = RATE_CHOICES.includes(settings.rate)
 			? RATE_CHOICES
 			: [...RATE_CHOICES, settings.rate].sort((a, b) => a - b);
-		rateSelect.replaceChildren(
-			...rates.map((r) =>
-				el(doc, 'option', {
-					value: String(r),
-					textContent: `${r}×`,
-					selected: r === settings.rate,
-				}),
-			),
-		);
+		view.setRates(rates, settings.rate);
 	};
-
-	// Ids of the voices of the current engine; null when listing failed.
-	let voiceIds: Set<string> | null = null;
 
 	const fillVoices = async () => {
 		let voices: Voice[] = [];
@@ -174,81 +102,88 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 			voices = await controller.listVoices();
 			voiceIds = new Set(voices.map((v) => v.id));
 		} catch (error) {
-			showError(error instanceof Error ? error.message : String(error));
+			view.showError(error instanceof Error ? error.message : String(error));
 		}
-		voices.sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
-		voiceSelect.replaceChildren(
-			el(doc, 'option', { value: '', textContent: t.defaultVoice }),
-			...voices.map((v) =>
-				el(doc, 'option', {
-					value: v.id,
-					textContent: `${v.name} (${v.lang})`,
-					selected: v.id === settings.voice,
-				}),
-			),
-		);
+		view.setVoices(voices, settings.voice);
 	};
 
-	// --- Settings -------------------------------------------------------
+	// Only these settings require a new engine (and a new voice list).
 	const engineSignature = (c: Settings) =>
 		JSON.stringify([c.engine, c.googleApiKey, c.azureApiKey, c.azureRegion, c.language]);
 
-	const applySettings = async (next: Settings, first: boolean) => {
-		const replaceEngine = first || engineSignature(next) !== engineSignature(settings);
-		settings = next;
-		if (replaceEngine) {
-			controller.setEngine(createEngine(settings, scope, t));
-			showError(null);
-			await fillVoices();
-		}
-		controller.setRate(settings.rate);
-		// A voice saved for another engine is unknown here: fall back to the default.
-		controller.setVoice(voiceIds && !voiceIds.has(settings.voice) ? '' : settings.voice);
-		fillRates();
+	return {
+		get: () => settings,
+		/** Applies settings coming from the plugin. */
+		async apply(next: Settings, first: boolean) {
+			const replaceEngine = first || engineSignature(next) !== engineSignature(settings);
+			settings = next;
+			if (replaceEngine) {
+				controller.setEngine(createEngine(settings, scope, t));
+				view.showError(null);
+				await fillVoices();
+			}
+			controller.setRate(settings.rate);
+			// A voice saved for another engine is unknown here: fall back to the default.
+			controller.setVoice(voiceIds && !voiceIds.has(settings.voice) ? '' : settings.voice);
+			fillRates();
+		},
+		/** Applies a change made by the user in the panel. */
+		change(patch: Partial<Pick<Settings, 'rate' | 'voice'>>) {
+			settings = { ...settings, ...patch };
+		},
 	};
+}
 
-	// --- Events ---------------------------------------------------------
-	closeBtn.onclick = () => {
-		controller.stop();
-		void api.postMessage({ type: 'close' });
-	};
-	playBtn.onclick = () => {
-		showError(null);
-		// Starting from idle asks the plugin for a fresh plan, so reading begins at
-		// the editor cursor or the current selection. Resume/pause act locally.
-		if (controller.getState().status === 'idle')
-			void api.postMessage({ type: 'reload', autoplay: true });
-		else controller.toggle();
-	};
-	prevBtn.onclick = () => controller.previous();
-	nextBtn.onclick = () => controller.next();
-	stopBtn.onclick = () => controller.stop();
-	rateSelect.onchange = () => {
-		const rate = Number(rateSelect.value);
-		settings = { ...settings, rate };
-		controller.setRate(rate);
-		void api.postMessage({ type: 'saveSettings', patch: { rate } });
-	};
-	voiceSelect.onchange = () => {
-		const voice = voiceSelect.value;
-		settings = { ...settings, voice };
-		controller.setVoice(voice);
-		void api.postMessage({ type: 'saveSettings', patch: { voice } });
-	};
+export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewScope) {
+	const t = getStrings(scope.navigator.language);
+	const root = doc.getElementById('tts-root');
+	if (!root) throw new Error('Missing #tts-root element');
 
-	api.onMessage((raw) => {
-		const message = unwrapMessage(raw);
-		if (!message) return;
+	const controller = new PlayerController(createEngine({ ...DEFAULT_SETTINGS }, scope, t));
+	let title = '';
+
+	const save = (patch: Partial<Settings>) => void api.postMessage({ type: 'saveSettings', patch });
+
+	const view: PlayerView = createView(doc, root, t, {
+		onClose() {
+			controller.stop();
+			void api.postMessage({ type: 'close' });
+		},
+		onPlay() {
+			view.showError(null);
+			// Starting from idle asks the plugin for a fresh plan, so reading begins at
+			// the editor cursor or the current selection. Resume/pause act locally.
+			if (controller.getState().status === 'idle')
+				void api.postMessage({ type: 'reload', autoplay: true });
+			else controller.toggle();
+		},
+		onPrevious: () => controller.previous(),
+		onNext: () => controller.next(),
+		onStop: () => controller.stop(),
+		onRate(rate) {
+			settingsManager.change({ rate });
+			controller.setRate(rate);
+			save({ rate });
+		},
+		onVoice(voice) {
+			settingsManager.change({ voice });
+			controller.setVoice(voice);
+			save({ voice });
+		},
+	});
+	const settingsManager = createSettingsManager(controller, view, scope, t);
+
+	const handleMessage = (message: PluginToPanelMessage) => {
 		switch (message.type) {
 			case 'init':
-				void applySettings(message.settings, true);
+				void settingsManager.apply(message.settings, true);
 				break;
 			case 'settings':
-				void applySettings(message.settings, false);
+				void settingsManager.apply(message.settings, false);
 				break;
 			case 'load':
 				title = message.title;
-				showError(null);
+				view.showError(null);
 				controller.load(message.sentences, message.startIndex);
 				if (message.autoplay) controller.play();
 				break;
@@ -256,14 +191,18 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 				controller.stop();
 				break;
 		}
-	});
+	};
 
-	controller.onChange(render);
-	controller.onError((error) => showError(error.message));
-	render(controller.getState());
+	api.onMessage((raw) => {
+		const message = unwrapMessage(raw);
+		if (message) handleMessage(message);
+	});
+	controller.onChange((state) => view.render(state, title));
+	controller.onError((error) => view.showError(error.message));
+	view.render(controller.getState(), title);
 	void api.postMessage({ type: 'ready' });
 
-	return { getController: () => controller, getSettings: () => settings };
+	return { getController: () => controller, getSettings: settingsManager.get };
 }
 
 /** Auto-start inside the Joplin panel webview. */

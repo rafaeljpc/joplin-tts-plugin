@@ -1,6 +1,33 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
+/** Forbids a layer from importing the given inner/outer layers and the Joplin API. */
+function layerRule(files, forbidden) {
+	return [
+		{
+			files: [files],
+			rules: {
+				'no-restricted-imports': [
+					'error',
+					{
+						patterns: [
+							{
+								group: [
+									...forbidden.map((layer) => `**/${layer}`),
+									...forbidden.map((layer) => `**/${layer}/**`),
+									'api',
+									'api/*',
+								],
+								message: `This layer must not depend on: ${forbidden.join(', ')} or the Joplin API.`,
+							},
+						],
+					},
+				],
+			},
+		},
+	];
+}
+
 export default tseslint.config(
 	{
 		ignores: [
@@ -22,6 +49,12 @@ export default tseslint.config(
 			eqeqeq: 'error',
 		},
 	},
+	// Dependency rule: domain <- application <- adapters <- webview <- (Joplin entry points).
+	// A layer may only import from the layers on its left.
+	...layerRule('src/domain/**', ['application', 'adapters', 'webview', 'plugin']),
+	...layerRule('src/application/**', ['adapters', 'webview', 'plugin']),
+	...layerRule('src/adapters/**', ['webview', 'plugin']),
+	...layerRule('src/webview/**', ['plugin']),
 	{
 		files: ['**/*.test.ts'],
 		rules: { '@typescript-eslint/no-require-imports': 'off' },

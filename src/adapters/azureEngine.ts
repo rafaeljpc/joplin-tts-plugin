@@ -1,5 +1,5 @@
 import { AudioSlot, CreateAudio } from './audioSlot';
-import { SpeakOptions, TtsEngine, Voice } from './types';
+import { SpeakOptions, TtsEngine, Voice } from '../domain/types';
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 

@@ -1,6 +1,6 @@
 import joplin from 'api';
 import { SettingItemType } from 'api/types';
-import { PanelToPluginMessage } from './lib/types';
+import { PanelToPluginMessage } from './application/messages';
 import {
 	COMMAND_READ,
 	COMMAND_STOP,

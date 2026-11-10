@@ -1,5 +1,5 @@
 import { PlayerController } from './player';
-import { SpeakOptions, TtsEngine, Voice } from './types';
+import { SpeakOptions, TtsEngine, Voice } from '../domain/types';
 
 class FakeEngine implements TtsEngine {
 	spoken: { text: string; options: SpeakOptions }[] = [];

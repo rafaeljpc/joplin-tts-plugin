@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-10
+
+### Changed
+
+- Reorganized `src` into `domain`, `application`, `adapters` and `webview` layers; the dependency rule is enforced by ESLint. No behaviour change.
+- Split the panel's `initPlayer` into a view, a settings manager and a message handler. No behaviour change.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

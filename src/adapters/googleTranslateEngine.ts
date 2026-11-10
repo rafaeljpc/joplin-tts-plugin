@@ -1,6 +1,6 @@
 import { AudioSlot, CreateAudio } from './audioSlot';
-import { chunkText } from './chunks';
-import { SpeakOptions, TtsEngine, Voice } from './types';
+import { chunkText } from '../domain/chunks';
+import { SpeakOptions, TtsEngine, Voice } from '../domain/types';
 
 const ENDPOINT = 'https://translate.google.com/translate_tts';
 /** The endpoint rejects long texts; sentences above this are split. */
