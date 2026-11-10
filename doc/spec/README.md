@@ -1,19 +1,19 @@
-# Especificação — joplin-tts-plugin
+# Specification — joplin-tts-plugin
 
-Documentação derivada da sessão de design do projeto (conversa "Plugin TTS para Joplin" no claude.ai) e mantida junto ao código. Onde o código já implementa algo, o documento descreve o comportamento real; onde ainda é intenção, está marcado como **planejado**.
+Documentation derived from the project's design session (the "Plugin TTS para Joplin" conversation on claude.ai) and kept alongside the code. Where the code already implements something, the document describes the actual behavior; where it is still an intention, it is marked **planned**.
 
-| Documento                                              | Conteúdo                                                         |
-| ------------------------------------------------------ | ---------------------------------------------------------------- |
-| [01-visao-geral.md](01-visao-geral.md)                 | Objetivo, requisitos, escopo e não-objetivos                     |
-| [02-analise-plataformas.md](02-analise-plataformas.md) | Viabilidade por plataforma (Windows, macOS, Linux, Android, iOS) |
-| [03-arquitetura.md](03-arquitetura.md)                 | Componentes, protocolo de mensagens, interface `TtsEngine`       |
-| [04-prototipo-ui.md](04-prototipo-ui.md)               | Telas aprovadas e como foram implementadas                       |
-| [05-configuracoes.md](05-configuracoes.md)             | Configurações do plugin                                          |
-| [06-testes-e-qualidade.md](06-testes-e-qualidade.md)   | Estratégia de testes, cobertura e boas práticas Joplin           |
-| [07-roadmap-e-decisoes.md](07-roadmap-e-decisoes.md)   | Decisões tomadas, pendências e roadmap                           |
+| Document                                                   | Contents                                                       |
+| ---------------------------------------------------------- | -------------------------------------------------------------- |
+| [01-overview.md](01-overview.md)                           | Goal, requirements, scope and non-goals                        |
+| [02-platform-analysis.md](02-platform-analysis.md)         | Feasibility per platform (Windows, macOS, Linux, Android, iOS) |
+| [03-architecture.md](03-architecture.md)                   | Components, message protocol, `TtsEngine` interface            |
+| [04-ui-prototype.md](04-ui-prototype.md)                   | Approved screens and how they were implemented                 |
+| [05-settings.md](05-settings.md)                           | Plugin settings                                                |
+| [06-testing-and-quality.md](06-testing-and-quality.md)     | Testing strategy, coverage and Joplin best practices           |
+| [07-roadmap-and-decisions.md](07-roadmap-and-decisions.md) | Decisions made, open items and roadmap                         |
 
-## Convenções
+## Conventions
 
-- **Fato**: confirmado em fonte citada (ver fontes em cada documento).
-- **Inferência**: dedução do autor da análise, ainda não testada. Aparece marcada como _inferência_.
-- **Planejado**: não implementado nesta versão.
+- **Fact**: confirmed by a cited source (see the sources in each document).
+- **Inference**: the analysis author's deduction, not yet tested. Marked as _inference_.
+- **Planned**: not implemented in this version.

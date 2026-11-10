@@ -19,6 +19,7 @@ const j = joplin as unknown as {
 		menuItems: Record<string, jest.Mock>;
 	};
 	commands: Record<string, jest.Mock>;
+	contentScripts: Record<string, jest.Mock>;
 	workspace: Record<string, jest.Mock>;
 	plugins: Record<string, jest.Mock>;
 };
@@ -54,17 +55,24 @@ describe('registerSettings / readSettings', () => {
 			'tts.voice',
 			'tts.rate',
 			'tts.googleApiKey',
-			'tts.googleLanguage',
+			'tts.azureApiKey',
+			'tts.azureRegion',
+			'tts.language',
 			'tts.readTitle',
 		]);
 		expect(settings['tts.googleApiKey'].secure).toBe(true);
+		expect(settings['tts.azureApiKey'].secure).toBe(true);
 		expect(settings['tts.rate'].type).toBe(SettingItemType.String);
 	});
 
 	it('reads and normalizes stored values', async () => {
-		Object.assign(stored, { 'tts.engine': 'google', 'tts.rate': '1.5', 'tts.readTitle': false });
+		Object.assign(stored, {
+			'tts.engine': 'google-cloud',
+			'tts.rate': '1.5',
+			'tts.readTitle': false,
+		});
 		await expect(readSettings()).resolves.toMatchObject({
-			engine: 'google',
+			engine: 'google-cloud',
 			rate: 1.5,
 			readTitle: false,
 		});
@@ -84,9 +92,14 @@ describe('start', () => {
 		expect(command(COMMAND_READ)).toBeDefined();
 		expect(command(COMMAND_STOP)).toBeDefined();
 		expect(j.views.toolbarButtons.create).toHaveBeenCalledWith(
-			COMMAND_READ,
+			'tts.readNote.noteToolbar',
 			COMMAND_READ,
 			'noteToolbar',
+		);
+		expect(j.views.toolbarButtons.create).toHaveBeenCalledWith(
+			'tts.readNote.editorToolbar',
+			COMMAND_READ,
+			'editorToolbar',
 		);
 		expect(j.views.menuItems.create).toHaveBeenCalledWith(COMMAND_READ, COMMAND_READ, 'tools', {
 			accelerator: 'CmdOrCtrl+Alt+R',
@@ -106,6 +119,7 @@ describe('start', () => {
 			type: 'load',
 			title: 'My note',
 			sentences: ['My note.', 'Heading', 'Hello world.', 'Bye.'],
+			startIndex: 0,
 			autoplay: true,
 		});
 	});
@@ -136,7 +150,76 @@ describe('start', () => {
 		await start();
 		await messageHandler()({ type: 'ready' });
 		await messageHandler()({ type: 'reload' });
-		expect(sent().at(-1)).toEqual({ type: 'load', title: '', sentences: [], autoplay: false });
+		expect(sent().at(-1)).toEqual({
+			type: 'load',
+			title: '',
+			sentences: [],
+			startIndex: 0,
+			autoplay: false,
+		});
+	});
+
+	describe('cursor and selection', () => {
+		const handler = (id: string) =>
+			(
+				j.contentScripts.onMessage.mock.calls.find((c) => c[0] === id) as [
+					string,
+					(m: unknown) => Promise<void>,
+				]
+			)[1];
+
+		it('registers the editor and viewer content scripts', async () => {
+			await start();
+			expect(j.contentScripts.register).toHaveBeenCalledWith(
+				'codeMirrorPlugin',
+				'tts.editor',
+				'./editorContentScript.js',
+			);
+			expect(j.contentScripts.register).toHaveBeenCalledWith(
+				'markdownItPlugin',
+				'tts.viewer',
+				'./viewerContentScript.js',
+			);
+		});
+
+		it('starts at the editor cursor', async () => {
+			await start();
+			await handler('tts.editor')({
+				source: 'editor',
+				cursor: { line: 2, column: 20 },
+				selection: '',
+			});
+			await messageHandler()({ type: 'ready' });
+			await messageHandler()({ type: 'reload' });
+			expect(sent().at(-1)).toMatchObject({ startIndex: 3 });
+		});
+
+		it('autoplays a reload requested by the play button', async () => {
+			await start();
+			await messageHandler()({ type: 'ready' });
+			await messageHandler()({ type: 'reload', autoplay: true });
+			expect(sent().at(-1)).toMatchObject({ type: 'load', autoplay: true });
+		});
+
+		it('reads only the selection made in the viewer, ignoring invalid messages', async () => {
+			await start();
+			await handler('tts.viewer')({ source: 'viewer', selection: 'Just this.' });
+			await handler('tts.viewer')('garbage');
+			await messageHandler()({ type: 'ready' });
+			await messageHandler()({ type: 'reload' });
+			expect(sent().at(-1)).toMatchObject({ sentences: ['Just this.'], startIndex: 0 });
+		});
+
+		it('forgets the cursor when another note is selected', async () => {
+			await start();
+			await handler('tts.viewer')({ source: 'viewer', selection: 'Just this.' });
+			await messageHandler()({ type: 'ready' });
+			const changed = j.workspace.onNoteSelectionChange.mock.calls[0][0] as () => Promise<void>;
+			await changed();
+			expect(sent().at(-1)).toMatchObject({
+				sentences: ['My note.', 'Heading', 'Hello world.', 'Bye.'],
+			});
+		});
 	});
 
 	it('handles a note without title or body', async () => {

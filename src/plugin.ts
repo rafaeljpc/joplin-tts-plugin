@@ -1,7 +1,12 @@
 import joplin from 'api';
-import { MenuItemLocation, SettingItemType, ToolbarButtonLocation } from 'api/types';
-import { markdownToPlainText } from './lib/markdown';
-import { noteToSentences } from './lib/sentences';
+import {
+	ContentScriptType,
+	MenuItemLocation,
+	SettingItemType,
+	ToolbarButtonLocation,
+} from 'api/types';
+import { EDITOR_SCRIPT_ID, VIEWER_SCRIPT_ID } from './lib/ids';
+import { Interaction, parseInteraction, planReading } from './lib/plan';
 import {
 	DEFAULT_SETTINGS,
 	normalizeSettings,
@@ -19,7 +24,7 @@ export const PANEL_HTML = '<div id="tts-root"></div>';
 
 export async function registerSettings(): Promise<void> {
 	await joplin.settings.registerSection(SETTINGS_SECTION, {
-		label: 'Read Aloud (TTS)',
+		label: 'Joplin Text-to-Speech',
 		iconName: 'fas fa-volume-up',
 		description:
 			'Voice, speed and the speech engine. Voice and speed can also be changed in the player panel.',
@@ -33,8 +38,14 @@ export async function registerSettings(): Promise<void> {
 			isEnum: true,
 			value: DEFAULT_SETTINGS.engine,
 			label: 'Speech engine',
-			description: 'System voices work offline. Google Cloud needs your own API key.',
-			options: { webspeech: 'System voices (Web Speech)', google: 'Google Cloud Text-to-Speech' },
+			description:
+				'System voices work offline. Google Translate is free but unofficial and may stop working. Google Cloud and Azure need your own key.',
+			options: {
+				webspeech: 'System voices (offline)',
+				'google-translate': 'Google Translate (online, free, unofficial)',
+				'google-cloud': 'Google Cloud Text-to-Speech (API key)',
+				azure: 'Microsoft Azure Speech (API key)',
+			},
 		},
 		[settingKey('voice')]: {
 			section: SETTINGS_SECTION,
@@ -59,13 +70,30 @@ export async function registerSettings(): Promise<void> {
 			label: 'Google Cloud API key',
 			description: 'Only used with the Google Cloud engine. Stored in the system keychain.',
 		},
-		[settingKey('googleLanguage')]: {
+		[settingKey('azureApiKey')]: {
+			section: SETTINGS_SECTION,
+			public: true,
+			secure: true,
+			type: SettingItemType.String,
+			value: DEFAULT_SETTINGS.azureApiKey,
+			label: 'Azure Speech key',
+			description: 'Only used with the Azure engine. Stored in the system keychain.',
+		},
+		[settingKey('azureRegion')]: {
 			section: SETTINGS_SECTION,
 			public: true,
 			type: SettingItemType.String,
-			value: DEFAULT_SETTINGS.googleLanguage,
-			label: 'Google Cloud language code',
-			description: 'For example en-US or pt-BR. Used to list and pick Google voices.',
+			value: DEFAULT_SETTINGS.azureRegion,
+			label: 'Azure Speech region',
+			description: 'Region of your Speech resource, for example eastus or brazilsouth.',
+		},
+		[settingKey('language')]: {
+			section: SETTINGS_SECTION,
+			public: true,
+			type: SettingItemType.String,
+			value: DEFAULT_SETTINGS.language,
+			label: 'Language code (online engines)',
+			description: 'For example en-US or pt-BR. Used to list voices and as the default language.',
 		},
 		[settingKey('readTitle')]: {
 			section: SETTINGS_SECTION,
@@ -94,17 +122,34 @@ export async function start(): Promise<void> {
 
 	let panelReady = false;
 	let pendingAutoplay: boolean | null = null;
+	// Last cursor / selection reported by the editor or the viewer (latest wins).
+	let interaction: Interaction | null = null;
+
+	await joplin.contentScripts.register(
+		ContentScriptType.CodeMirrorPlugin,
+		EDITOR_SCRIPT_ID,
+		'./editorContentScript.js',
+	);
+	await joplin.contentScripts.register(
+		ContentScriptType.MarkdownItPlugin,
+		VIEWER_SCRIPT_ID,
+		'./viewerContentScript.js',
+	);
+	const track = async (message: unknown) => {
+		interaction = parseInteraction(message) ?? interaction;
+	};
+	await joplin.contentScripts.onMessage(EDITOR_SCRIPT_ID, track);
+	await joplin.contentScripts.onMessage(VIEWER_SCRIPT_ID, track);
 
 	const send = (message: PluginToPanelMessage) => joplin.views.panels.postMessage(panel, message);
 
 	const loadSelectedNote = async (autoplay: boolean) => {
 		const note = await joplin.workspace.selectedNote();
 		const settings = await readSettings();
-		const body = note ? markdownToPlainText(note.body ?? '') : '';
-		const sentences = note
-			? noteToSentences(note.title ?? '', body, settings.readTitle, settings.googleLanguage)
-			: [];
-		await send({ type: 'load', title: note?.title ?? '', sentences, autoplay });
+		const { sentences, startIndex } = note
+			? planReading({ title: note.title ?? '', body: note.body ?? '' }, settings, interaction)
+			: { sentences: [], startIndex: 0 };
+		await send({ type: 'load', title: note?.title ?? '', sentences, startIndex, autoplay });
 	};
 
 	await joplin.views.panels.onMessage(panel, async (message: PanelToPluginMessage) => {
@@ -119,7 +164,7 @@ export async function start(): Promise<void> {
 				}
 				break;
 			case 'reload':
-				await loadSelectedNote(false);
+				await loadSelectedNote(message.autoplay ?? false);
 				break;
 			case 'saveSettings':
 				for (const key of SETTING_KEYS) {
@@ -138,7 +183,7 @@ export async function start(): Promise<void> {
 
 	await joplin.commands.register({
 		name: COMMAND_READ,
-		label: 'Read note aloud',
+		label: 'Joplin Text-to-Speech: read note',
 		iconName: 'fas fa-volume-up',
 		execute: async () => {
 			await joplin.views.panels.show(panel, true);
@@ -149,7 +194,7 @@ export async function start(): Promise<void> {
 
 	await joplin.commands.register({
 		name: COMMAND_STOP,
-		label: 'Stop reading aloud',
+		label: 'Joplin Text-to-Speech: stop',
 		iconName: 'fas fa-stop',
 		execute: async () => {
 			await send({ type: 'stop' });
@@ -157,10 +202,17 @@ export async function start(): Promise<void> {
 		},
 	});
 
+	// Top-right note toolbar and the toolbar above the editor, so the button is
+	// reachable whichever layout or editor the user has.
 	await joplin.views.toolbarButtons.create(
-		COMMAND_READ,
+		`${COMMAND_READ}.noteToolbar`,
 		COMMAND_READ,
 		ToolbarButtonLocation.NoteToolbar,
+	);
+	await joplin.views.toolbarButtons.create(
+		`${COMMAND_READ}.editorToolbar`,
+		COMMAND_READ,
+		ToolbarButtonLocation.EditorToolbar,
 	);
 	await joplin.views.menuItems.create(COMMAND_READ, COMMAND_READ, MenuItemLocation.Tools, {
 		accelerator: 'CmdOrCtrl+Alt+R',
@@ -173,6 +225,8 @@ export async function start(): Promise<void> {
 	// Switching notes while the panel is open: stop and load the new note
 	// (without autoplay, so audio never starts unexpectedly).
 	await joplin.workspace.onNoteSelectionChange(async () => {
+		// A cursor or selection belongs to the previous note.
+		interaction = null;
 		if (!panelReady || !(await joplin.views.panels.visible(panel))) return;
 		await loadSelectedNote(false);
 	});

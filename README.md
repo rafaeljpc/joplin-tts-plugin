@@ -1,16 +1,24 @@
-# Read Aloud (TTS) — Joplin plugin
+# Joplin Text-to-Speech
+
+[![CI](https://github.com/rafaeljpc/joplin-tts-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/rafaeljpc/joplin-tts-plugin/actions/workflows/ci.yml)
+![Coverage](.github/badges/coverage.svg)
+![Branch coverage](.github/badges/branches.svg)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Reads the open note aloud, **sentence by sentence**, with a player panel: voice selection, play/pause, previous/next/stop and playback speed.
 
-> Status: **v0.1 (early)**. Desktop first. See [doc/spec](doc/spec/README.md) for the design, platform analysis and roadmap (in Portuguese).
+> Status: **v0.1 (early)**. Desktop first. See [doc/spec](doc/spec/README.md) for the design, platform analysis and roadmap.
 
 ## Features
 
-- 🔊 Toolbar button, **Tools → Read note aloud** menu item and `Ctrl/Cmd+Alt+R`.
+- **Where reading starts:** in the Markdown editor, at the sentence under the cursor; if you select text (editor or viewer), only the selection is read; otherwise the whole note from the beginning. This needs the CodeMirror 6 editor.
+- 🔊 Button in the note toolbar and above the editor, **Tools → Joplin Text-to-Speech: read note** menu item and `Ctrl/Cmd+Alt+R`.
 - Player panel with voice picker, speed (0.75×–2×), progress ("Sentence 3 of 8") and the current sentence.
-- Two speech engines:
+- Four speech engines (pick one in the settings):
   - **System voices** (Web Speech API) — offline, free.
-  - **Google Cloud Text-to-Speech** — bring your own API key.
+  - **Google Translate** — online, free, no key, one voice per language. It uses an unofficial public endpoint, so it may change or stop working.
+  - **Microsoft Azure Speech** — neural voices, official API; bring your own key (the free tier covers 500,000 characters per month).
+  - **Google Cloud Text-to-Speech** — official API; bring your own key.
 - Markdown is converted to speakable text (code blocks, links, images and HTML are skipped).
 - English and Brazilian Portuguese UI.
 
@@ -22,9 +30,9 @@ Reads the open note aloud, **sentence by sentence**, with a player panel: voice 
 
 ## Settings
 
-**Tools → Options → Read Aloud (TTS)**: speech engine, Google Cloud API key (stored securely), Google language code (e.g. `pt-BR`), read the title first. Voice and speed are chosen in the player panel.
+**Tools → Options → Joplin Text-to-Speech**: speech engine, API keys (stored securely), Azure region, language code (e.g. `pt-BR`) for the online engines, read the title first. Voice and speed are chosen in the player panel.
 
-> When the Google engine is selected, the text of the note is sent to Google Cloud. System voices never leave your device.
+> With any online engine (Google Translate, Google Cloud, Azure) the text of the note is sent to that service. System voices never leave your device.
 
 ## Development
 

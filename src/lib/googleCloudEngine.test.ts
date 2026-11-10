@@ -105,6 +105,14 @@ describe('GoogleCloudEngine', () => {
 		expect(audio.pause).toHaveBeenCalledTimes(1);
 	});
 
+	it('cancel during the request wins and plays nothing', async () => {
+		const { engine, createAudio } = setup([jsonResponse({ audioContent: 'QQ==' })]);
+		const promise = engine.speak('x', { voiceId: '', rate: 1 });
+		engine.cancel();
+		await expect(promise).resolves.toBeUndefined();
+		expect(createAudio).not.toHaveBeenCalled();
+	});
+
 	it('rejects on playback errors', async () => {
 		const { engine, audio } = setup([jsonResponse({ audioContent: 'QQ==' })]);
 		const promise = engine.speak('x', { voiceId: '', rate: 1 });

@@ -20,7 +20,9 @@ describe('settings', () => {
 	});
 
 	it('normalizes the engine', () => {
-		expect(normalizeEngine('google')).toBe('google');
+		expect(normalizeEngine('google-cloud')).toBe('google-cloud');
+		expect(normalizeEngine('azure')).toBe('azure');
+		expect(normalizeEngine('google-translate')).toBe('google-translate');
 		expect(normalizeEngine('whatever')).toBe('webspeech');
 	});
 
@@ -31,19 +33,23 @@ describe('settings', () => {
 	it('keeps valid values and trims strings', () => {
 		expect(
 			normalizeSettings({
-				engine: 'google',
+				engine: 'azure',
+				azureApiKey: ' az ',
+				azureRegion: ' brazilsouth ',
 				voice: 'v1',
 				rate: '1.5',
 				googleApiKey: '  key  ',
-				googleLanguage: ' pt-BR ',
+				language: ' pt-BR ',
 				readTitle: false,
 			}),
 		).toEqual({
-			engine: 'google',
+			engine: 'azure',
+			azureApiKey: 'az',
+			azureRegion: 'brazilsouth',
 			voice: 'v1',
 			rate: 1.5,
 			googleApiKey: 'key',
-			googleLanguage: 'pt-BR',
+			language: 'pt-BR',
 			readTitle: false,
 		});
 	});
@@ -52,12 +58,12 @@ describe('settings', () => {
 		const result = normalizeSettings({
 			voice: 5,
 			googleApiKey: 5,
-			googleLanguage: '  ',
+			language: '  ',
 			readTitle: 0,
 		});
 		expect(result.voice).toBe('');
 		expect(result.googleApiKey).toBe('');
-		expect(result.googleLanguage).toBe(DEFAULT_SETTINGS.googleLanguage);
+		expect(result.language).toBe(DEFAULT_SETTINGS.language);
 		expect(result.readTitle).toBe(false);
 	});
 

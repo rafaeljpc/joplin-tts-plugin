@@ -40,6 +40,19 @@ describe('PlayerController', () => {
 		expect(player.getState()).toEqual({ status: 'idle', index: 0, total: 3, sentence: 'one' });
 	});
 
+	it('starts at the requested sentence, clamped to the loaded range', () => {
+		const { player, engine } = setup();
+		player.load(['a', 'b', 'c'], 2);
+		player.play();
+		expect(engine.spoken.map((s) => s.text)).toEqual(['c']);
+		player.load(['a', 'b', 'c'], 99);
+		expect(player.getState().index).toBe(2);
+		player.load(['a', 'b', 'c'], -4);
+		expect(player.getState().index).toBe(0);
+		player.load([], 3);
+		expect(player.getState().index).toBe(0);
+	});
+
 	it('does nothing when there is nothing to play', () => {
 		const { player, engine } = setup([]);
 		player.play();

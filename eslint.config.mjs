@@ -10,6 +10,7 @@ export default tseslint.config(
 			'coverage/**',
 			'webpack.config.js',
 			'jest.config.js',
+			'.github/scripts/**',
 		],
 	},
 	js.configs.recommended,

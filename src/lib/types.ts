@@ -1,4 +1,4 @@
-export type EngineId = 'webspeech' | 'google';
+export type EngineId = 'webspeech' | 'google-translate' | 'google-cloud' | 'azure';
 
 export interface Voice {
 	/** Stable identifier (voiceURI for Web Speech, voice name for Google). */
@@ -27,7 +27,10 @@ export interface Settings {
 	voice: string;
 	rate: number;
 	googleApiKey: string;
-	googleLanguage: string;
+	azureApiKey: string;
+	azureRegion: string;
+	/** Language code (e.g. pt-BR) used by the online engines. */
+	language: string;
 	readTitle: boolean;
 }
 
@@ -35,12 +38,19 @@ export interface Settings {
 export type PluginToPanelMessage =
 	| { type: 'init'; settings: Settings }
 	| { type: 'settings'; settings: Settings }
-	| { type: 'load'; title: string; sentences: string[]; autoplay: boolean }
+	| {
+			type: 'load';
+			title: string;
+			sentences: string[];
+			/** Sentence where reading starts (the one at the editor cursor). */
+			startIndex: number;
+			autoplay: boolean;
+	  }
 	| { type: 'stop' };
 
 /** Messages sent from the panel webview to the plugin. */
 export type PanelToPluginMessage =
 	| { type: 'ready' }
-	| { type: 'reload' }
+	| { type: 'reload'; autoplay?: boolean }
 	| { type: 'saveSettings'; patch: Partial<Settings> }
 	| { type: 'close' };
