@@ -65,8 +65,10 @@ describe('voice picker view', () => {
 		const { view, q } = setup();
 		view.render(state({ downloading: { id: 'pt_BR-faber-medium', loaded: 25, total: 100 } }));
 		expect(q('.tts-picker-status').textContent).toBe('Downloading… 25%');
+		expect(q<HTMLProgressElement>('.tts-picker-progress').value).toBe(25);
 		expect(q<HTMLButtonElement>('.tts-picker-download').disabled).toBe(true);
 		view.render(state({ downloading: { id: 'other', loaded: 1, total: 0 } }));
+		expect(document.querySelector('.tts-picker-progress')).toBeNull();
 		expect(q('.tts-picker-status').textContent).toBe('');
 		view.render(state({ downloading: { id: 'pt_BR-faber-medium', loaded: 1, total: 0 } }));
 		expect(q('.tts-picker-status').textContent).toBe('Downloading… 0%');

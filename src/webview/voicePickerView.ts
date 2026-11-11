@@ -23,6 +23,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
 	return node;
 }
 
+/** Download progress, 0 to 100 (0 while the size is unknown). */
+const percentOf = ({ loaded, total }: { loaded: number; total: number }): number =>
+	total > 0 ? Math.min(100, Math.floor((loaded / total) * 100)) : 0;
+
 /** `pt_BR` as shown to people: `pt-BR`. */
 const locale = (code: string): string => code.replace('_', '-');
 
@@ -53,11 +57,7 @@ export function createVoicePicker(
 
 	const status = (voice: DialogVoice, state: DialogState): string => {
 		if (state.downloading?.id === voice.id) {
-			const { loaded, total } = state.downloading;
-			return format(
-				t.piperDownloading,
-				total > 0 ? Math.min(100, Math.floor((loaded / total) * 100)) : 0,
-			);
+			return format(t.piperDownloading, percentOf(state.downloading));
 		}
 		return voice.installed ? t.piperDownloaded : '';
 	};
@@ -88,12 +88,26 @@ export function createVoicePicker(
 		action.onclick = () =>
 			handlers.onRequest({ type: voice.installed ? 'remove' : 'download', id: voice.id });
 		const label = `${voice.name} (${locale(voice.language)}${voice.quality ? `, ${voice.quality}` : ''})`;
+		const downloading = state.downloading?.id === voice.id ? state.downloading : null;
 		return el(doc, 'div', { className: 'tts-picker-row' }, [
-			radio,
-			el(doc, 'span', { className: 'tts-picker-name', textContent: label }),
-			el(doc, 'span', { className: 'tts-picker-size', textContent: size }),
-			el(doc, 'span', { className: 'tts-picker-status', textContent: status(voice, state) }),
-			action,
+			el(doc, 'label', { className: 'tts-picker-head' }, [
+				radio,
+				el(doc, 'span', { className: 'tts-picker-name', textContent: label }),
+			]),
+			el(doc, 'div', { className: 'tts-picker-detail' }, [
+				el(doc, 'span', { className: 'tts-picker-size', textContent: size }),
+				el(doc, 'span', { className: 'tts-picker-status', textContent: status(voice, state) }),
+				action,
+			]),
+			...(downloading
+				? [
+						el(doc, 'progress', {
+							className: 'tts-picker-progress',
+							max: 100,
+							value: percentOf(downloading),
+						}),
+					]
+				: []),
 		]);
 	};
 
