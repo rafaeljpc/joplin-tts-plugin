@@ -22,22 +22,22 @@
 ## Manual test checklist per platform
 
 - [ ] Windows — system voices listed, play/pause/speed
-- [ ] macOS — same
+- [ ] macOS — same, plus Piper (download, synthesis) and `Cmd+Alt+R`
 - [ ] Linux — check whether `speechSynthesis` works (a failure was reported)
 - [ ] Any desktop — Google engine with a valid and an invalid key
-- [ ] Android — is `speechSynthesis` present? If not, Google engine
+- [ ] Android — is `speechSynthesis` present? If not, Google engine; does Piper run (WebAssembly, `fetch`, data folder)?
 - [ ] iOS — depends on the plugin being "recommended"
 
 ## Roadmap
 
-| Version | Items                                                                                                                                                                                                                                |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0.1     | Panel, commands, Web Speech, Google Translate, Azure, Google Cloud TTS, tests with 100% coverage (**this repository**)                                                                                                               |
-| 0.2     | Prefetch the next sentence's audio (online engines) to remove gaps (**done**); start at the cursor / read only the selection (done in 0.1.x)                                                                                         |
-| 0.3     | Highlight the current sentence inside the note (editor and viewer) (**done**); release published automatically on merge to `main`                                                                                                    |
-| 0.4     | Offline Piper engine with voices downloaded by the user (**done**, to be checked in a real Joplin; design in the section below)                                                                                                      |
-| 0.5     | Test the plugin on Joplin for Android: panel, commands, each engine (is `speechSynthesis` present? does Piper's WebAssembly/`fetch` work in the mobile plugin runtime?) and the open items above; fix or document what does not work |
-| ≥ 1.0   | Publish to the official catalog; submit as a "recommended" plugin for iOS; evaluate a native Android TTS API (contribution to Joplin core)                                                                                           |
+| Version | Items                                                                                                                                                                                                                                                                                                                                                          |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1     | Panel, commands, Web Speech, Google Translate, Azure, Google Cloud TTS, tests with 100% coverage (**this repository**)                                                                                                                                                                                                                                         |
+| 0.2     | Prefetch the next sentence's audio (online engines) to remove gaps (**done**); start at the cursor / read only the selection (done in 0.1.x)                                                                                                                                                                                                                   |
+| 0.3     | Highlight the current sentence inside the note (editor and viewer) (**done**); release published automatically on merge to `main`                                                                                                                                                                                                                              |
+| 0.4     | Offline Piper engine with voices downloaded by the user (**done**, to be checked in a real Joplin; design in the section below)                                                                                                                                                                                                                                |
+| 0.5     | Test the plugin on **Android** and **macOS**: panel, commands, each engine, Piper and the open items above. Android: is `speechSynthesis` present? do Piper's WebAssembly and `fetch` work in the mobile plugin runtime? macOS: system voices, Piper (WebAssembly in the plugin process), the shortcut and the data folder. Fix or document what does not work |
+| ≥ 1.0   | Publish to the official catalog; submit as a "recommended" plugin for iOS; evaluate a native Android TTS API (contribution to Joplin core)                                                                                                                                                                                                                     |
 
 ## 0.4 offline Piper engine: design decisions
 
