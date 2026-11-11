@@ -32,7 +32,7 @@ export const PANEL_ID = 'tts.panel';
 export const VOICE_DIALOG_ID = 'tts.voiceDialog';
 
 export const PANEL_HTML = '<div id="tts-root"></div>';
-export const VOICE_DIALOG_HTML = '<div id="tts-voice-root"></div>';
+export const VOICE_DIALOG_HTML = '<div id="tts-voice-root" style="width:880px;height:480px"></div>';
 
 export async function registerSettings(): Promise<void> {
 	await joplin.settings.registerSection(SETTINGS_SECTION, {
@@ -180,9 +180,8 @@ export async function start(): Promise<void> {
 	const initial = await readSettings();
 	const piper = await composePiper(readSettings);
 	const dialog = await joplin.views.dialogs.create(VOICE_DIALOG_ID);
-	// Fitted to its content the dialog is a narrow strip (its width is not up to the page);
-	// unfitted it takes most of the window, which leaves room for the list.
-	await joplin.views.dialogs.setFitToContent(dialog, false);
+	// About a quarter of the screen. The size is in the HTML itself (not in the CSS file) so that
+	// it is there when Joplin measures the content to size the dialog.
 	await joplin.views.dialogs.setHtml(dialog, VOICE_DIALOG_HTML);
 	await joplin.views.dialogs.addScript(dialog, './webview/voiceDialog.css');
 	await joplin.views.dialogs.addScript(dialog, './webview/voiceDialog.js');
