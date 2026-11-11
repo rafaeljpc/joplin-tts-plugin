@@ -31,7 +31,7 @@ export async function registerSettings(): Promise<void> {
 		label: 'Joplin Text-to-Speech',
 		iconName: 'fas fa-volume-up',
 		description:
-			'Voice, speed and the speech engine. Voice and speed can also be changed in the player panel.',
+			'Voice, speed and the speech engine. Voice and speed can also be changed in the player panel. Open source and credits: github.com/rafaeljpc/joplin-tts-plugin (Piper, eSpeak NG, ONNX Runtime).',
 	});
 
 	await joplin.settings.registerSettings({
