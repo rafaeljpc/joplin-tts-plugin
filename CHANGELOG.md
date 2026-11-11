@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-11
+
 ### Added
 
 - **Piper**, an offline neural speech engine. Voices are downloaded by the user (none by default, with the size of each shown) from a catalog whose URL is the new advanced setting _Piper voices URL_, and stored in the plugin's data folder. Choosing the engine opens a voice dialog that cannot be left without a downloaded voice (or going back to another engine); **Tools → Joplin Text-to-Speech: Piper voices** reopens it. The internet is needed only for the downloads.
