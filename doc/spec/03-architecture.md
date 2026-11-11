@@ -2,6 +2,10 @@
 
 ## Overview
 
+PlantUML sources (render with the PlantUML extension or `plantuml doc/spec/diagrams/*.puml`):
+[`diagrams/architecture.puml`](diagrams/architecture.puml) (components and layers, with Piper) and
+[`diagrams/piper-sequence.puml`](diagrams/piper-sequence.puml) (choose the engine, download, read).
+
 ```mermaid
 flowchart LR
   subgraph Plugin["Plugin process (src/plugin.ts)"]
