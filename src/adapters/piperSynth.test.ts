@@ -132,6 +132,16 @@ describe('PiperSynthesizer', () => {
 		await expect(odd.synth.synthesize('v', 'x')).rejects.toThrow('no phonemes');
 	});
 
+	it("numbers the phonemes with the voice's own table, not the phonemizer's default", async () => {
+		const config = { ...CONFIG, phoneme_id_map: { '^': [1], $: [2], _: [0], a: [7] } };
+		const { synth, run } = setup(config, (h) =>
+			h.print(JSON.stringify({ phonemes: [['a', 'a']], phoneme_ids: [99, 98] })),
+		);
+		await synth.synthesize('v', 'x');
+		const feeds = (run.mock.calls[0] as unknown as [Record<string, FakeTensor>])[0];
+		expect(Array.from(feeds.input.data as BigInt64Array).map(Number)).toEqual([1, 7, 0, 7, 0, 2]);
+	});
+
 	it('retries loading the runtime after a failure', async () => {
 		const { synth, loadRuntime, runtime } = setup();
 		loadRuntime.mockRejectedValueOnce(new Error('no network'));

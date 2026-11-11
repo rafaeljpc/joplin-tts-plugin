@@ -1,7 +1,8 @@
 import { PiperDialogController } from './application/piperDialog';
 import { PiperSynthesizeReply, PiperVoicesReply } from './application/messages';
 import { FetchFn, FsLike, PiperStorage } from './adapters/piperStorage';
-import { CreatePhonemizer, OrtLike, PiperRuntime, PiperSynthesizer } from './adapters/piperSynth';
+import { loadOrt } from './adapters/ortLoader';
+import { CreatePhonemizer, PiperRuntime, PiperSynthesizer } from './adapters/piperSynth';
 import { Settings } from './domain/types';
 
 /** Everything Piper needs from the platform; the composition root provides it. */
@@ -41,7 +42,10 @@ export function createPiper(readSettings: () => Promise<Settings>, deps: PiperDe
 		loadRuntime: async (): Promise<PiperRuntime> => {
 			await storage.ensureRuntime();
 			return {
-				ort: requireFn(storage.runtimePath('ort.wasm.min.js')) as OrtLike,
+				ort: loadOrt(
+					new TextDecoder().decode(await deps.fs.readFile(storage.runtimePath('ort.wasm.min.js'))),
+					await deps.fs.readFile(storage.runtimePath('ort-wasm-simd.wasm')),
+				),
 				createPhonemizer: requireFn(storage.runtimePath('piper_phonemize.js')) as CreatePhonemizer,
 				runtimeDir: storage.runtimeDir,
 			};

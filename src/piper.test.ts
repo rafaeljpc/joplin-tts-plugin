@@ -1,3 +1,4 @@
+/** @jest-environment node */
 import { DEFAULT_SETTINGS } from './domain/settings';
 import { Settings } from './domain/types';
 import { createPiper, PiperDeps } from './piper';
@@ -7,6 +8,10 @@ const settings = (patch: Partial<Settings> = {}): Settings => ({ ...DEFAULT_SETT
 
 const META = (id: string, language = 'pt_BR', quality = 'medium') =>
 	JSON.stringify({ id, name: id.split('-')[1], language, quality, sizeBytes: 5 });
+
+/** Stand-in for the downloaded ONNX Runtime script; its session cannot be created. */
+const ORT_SCRIPT =
+	'module.exports = { env: { wasm: {} }, InferenceSession: { create: async () => { throw new Error("no session"); } } };';
 
 /** A file system holding the given downloaded voices (and nothing else). */
 function fsWith(...ids: string[]): FsLike {
@@ -39,7 +44,12 @@ function fsWith(...ids: string[]): FsLike {
 				),
 			];
 		},
-		readFile: async (path) => files.get(path) as Uint8Array,
+		readFile: async (path) =>
+			path.endsWith('ort.wasm.min.js')
+				? Buffer.from(ORT_SCRIPT)
+				: path.endsWith('.wasm')
+					? Buffer.from([0, 97, 115, 109])
+					: (files.get(path) as Uint8Array),
 		writeFile: async () => undefined,
 		rename: async () => undefined,
 		rm: async () => undefined,
@@ -62,10 +72,7 @@ const depsFor = (...ids: string[]): PiperDeps => ({
 const loadableRuntime = (piper: { storage: { ensureRuntime: () => Promise<void> } }) => {
 	jest.spyOn(piper.storage, 'ensureRuntime').mockResolvedValue(undefined);
 };
-const fakeRequire = (id: string) =>
-	id.endsWith('ort.wasm.min.js')
-		? { env: { wasm: {} }, InferenceSession: { create: jest.fn() } }
-		: jest.fn();
+const fakeRequire = () => jest.fn();
 
 describe('createPiper', () => {
 	it('lists the downloaded voices for the player', async () => {
@@ -132,13 +139,7 @@ describe('createPiper', () => {
 	it('loads the downloaded runtime scripts', async () => {
 		const deps = depsFor('pt_BR-faber-medium');
 		const requireFn = deps.requireFn as jest.Mock;
-		const ort = {
-			env: { wasm: {} },
-			InferenceSession: { create: jest.fn().mockRejectedValue(new Error('no session')) },
-		};
-		requireFn.mockImplementation((id: string) =>
-			id.endsWith('ort.wasm.min.js') ? ort : jest.fn(),
-		);
+		requireFn.mockReturnValue(jest.fn());
 		const piper = await createPiper(async () => settings(), deps);
 		jest.spyOn(piper.storage, 'ensureRuntime').mockResolvedValue(undefined);
 		await expect(piper.synthesize('x', 'pt_BR-faber-medium')).resolves.toEqual({
@@ -146,7 +147,6 @@ describe('createPiper', () => {
 			error: 'no session',
 		});
 		expect(requireFn.mock.calls.map(([id]) => require('path').basename(id))).toEqual([
-			'ort.wasm.min.js',
 			'piper_phonemize.js',
 		]);
 	});

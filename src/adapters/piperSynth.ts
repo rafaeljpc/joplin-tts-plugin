@@ -1,5 +1,6 @@
 import * as nodePath from 'path';
 import { bytesToBase64, pcmToWav } from '../domain/wav';
+import { phonemeIds } from '../domain/piperPhonemes';
 import { PiperVoiceConfig } from '../domain/piperVoiceConfig';
 
 export interface OrtSession {
@@ -123,11 +124,13 @@ export class PiperSynthesizer {
 		text: string,
 	): Promise<number[]> {
 		let ids: number[] | null = null;
+		const phonemes: unknown[] = [];
 		let failure: string | null = null;
 		const module = await runtime.createPhonemizer({
 			print: (line) => {
-				const parsed = (JSON.parse(line) as { phoneme_ids?: unknown }).phoneme_ids;
-				if (Array.isArray(parsed)) ids = parsed as number[];
+				const parsed = JSON.parse(line) as { phoneme_ids?: unknown; phonemes?: unknown };
+				if (Array.isArray(parsed.phoneme_ids)) ids = parsed.phoneme_ids as number[];
+				if (parsed.phonemes !== undefined) phonemes.push(parsed.phonemes);
 			},
 			printErr: (line) => {
 				failure = line;
@@ -142,6 +145,9 @@ export class PiperSynthesizer {
 			'--espeak_data',
 			'/espeak-ng-data',
 		]);
+		// The phonemizer numbers phonemes with its own default table; a voice has its own.
+		if (config.phoneme_id_map && phonemes.length > 0)
+			ids = phonemeIds(phonemes, config.phoneme_id_map);
 		if (!ids || (ids as number[]).length === 0) {
 			throw new Error(failure ?? 'The phonemizer produced no phonemes for this text');
 		}

@@ -5,5 +5,10 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["src/piper.ts"]
+  "include": [
+    "src/piper.ts",
+    "src/adapters/ortLoader.ts",
+    "src/domain/settings.ts",
+    "src/domain/piperCatalog.ts"
+  ]
 }
