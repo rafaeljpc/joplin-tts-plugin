@@ -10,6 +10,10 @@ All notable changes to this project are documented here. Format based on
 
 - **Piper**, an offline neural speech engine. Voices are downloaded by the user (none by default, with the size of each shown) from a catalog whose URL is the new advanced setting _Piper voices URL_, and stored in the plugin's data folder. Choosing the engine opens a voice screen over the player that cannot be left without a downloaded voice (or going back to another engine); **Tools → Joplin Text-to-Speech: Piper voices** reopens it. The internet is needed only for the downloads.
 
+### Changed
+
+- Dependency injection is centralized: a composition root per runtime (`src/compose`, and the panel's engine registry), explicit dependencies for Piper and the Piper-without-a-voice rules in their own class. No behaviour change.
+
 ## [0.3.1] - 2026-11-10
 
 ### Changed

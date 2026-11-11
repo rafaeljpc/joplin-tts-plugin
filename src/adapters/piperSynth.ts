@@ -1,6 +1,6 @@
 import * as nodePath from 'path';
 import { bytesToBase64, pcmToWav } from '../domain/wav';
-import { PiperVoiceConfig } from './piperStorage';
+import { PiperVoiceConfig } from '../domain/piperVoiceConfig';
 
 export interface OrtSession {
 	run(feeds: Record<string, unknown>): Promise<{ output: { data: Float32Array } }>;

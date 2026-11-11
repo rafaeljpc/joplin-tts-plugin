@@ -15,8 +15,9 @@ import {
 	settingKey,
 } from './domain/settings';
 import { PanelToPluginMessage, PluginToPanelMessage } from './application/messages';
-import { EngineId, Settings } from './domain/types';
-import { createPiper } from './piper';
+import { Settings } from './domain/types';
+import { composePiper } from './compose/pluginRoot';
+import { PiperGate } from './piperGate';
 import { VoicePickerFlow } from './piperPicker';
 
 export const COMMAND_READ = 'tts.readNote';
@@ -170,15 +171,14 @@ export async function start(): Promise<void> {
 	// Offline Piper engine: voices live in a local folder; picking one happens in a screen
 	// over the player, which cannot be left without a voice (or another engine).
 	const initial = await readSettings();
-	let lastNonPiper: EngineId = initial.engine === 'piper' ? 'webspeech' : initial.engine;
-	let engineWasPiper = initial.engine === 'piper';
-	const piper = await createPiper(readSettings);
+	const piper = await composePiper(readSettings);
 	const picker = new VoicePickerFlow(piper.controller, {
 		settings: readSettings,
 		set: (key, value) => joplin.settings.setValue(settingKey(key), value),
 		showPanel: () => joplin.views.panels.show(panel, true),
 		send: async (message) => send(message),
 	});
+	const gate = new PiperGate(initial, piper, picker);
 
 	const showHighlight = async (index: number | null) => {
 		const span = index === null ? null : (currentPlan?.highlights[index] ?? null);
@@ -252,10 +252,7 @@ export async function start(): Promise<void> {
 		label: 'Joplin Text-to-Speech: read note',
 		iconName: 'fas fa-volume-up',
 		execute: async () => {
-			if ((await readSettings()).engine === 'piper' && !(await piper.hasVoices())) {
-				await picker.open(lastNonPiper);
-				return;
-			}
+			if (await gate.blocksReading(await readSettings())) return;
 			await joplin.views.panels.show(panel, true);
 			if (panelReady) await loadSelectedNote(true);
 			else pendingAutoplay = true;
@@ -277,8 +274,7 @@ export async function start(): Promise<void> {
 		label: 'Joplin Text-to-Speech: Piper voices',
 		iconName: 'fas fa-download',
 		execute: async () => {
-			const goBack = (await readSettings()).engine === 'piper' && !(await piper.hasVoices());
-			await picker.open(goBack ? lastNonPiper : null);
+			await gate.openVoiceManager(await readSettings());
 		},
 	});
 
@@ -305,15 +301,7 @@ export async function start(): Promise<void> {
 
 	await joplin.settings.onChange(async () => {
 		const settings = await readSettings();
-		if (settings.engine !== 'piper') {
-			lastNonPiper = settings.engine;
-			await picker.dismiss();
-		} else if (!engineWasPiper) {
-			// Piper was just chosen: it needs a downloaded voice before the settings can be left.
-			const voices = await piper.storage.installed();
-			if (!voices.some((v) => v.id === settings.voice)) await picker.open(lastNonPiper);
-		}
-		engineWasPiper = settings.engine === 'piper';
+		await gate.settingsChanged(settings);
 		if (panelReady) await send({ type: 'settings', settings });
 	});
 

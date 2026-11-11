@@ -1,6 +1,6 @@
 import * as nodePath from 'path';
 import { PiperRuntime, PiperSynthesizer } from './piperSynth';
-import { PiperVoiceConfig } from './piperStorage';
+import { PiperVoiceConfig } from '../domain/piperVoiceConfig';
 
 class FakeTensor {
 	constructor(

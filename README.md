@@ -94,7 +94,8 @@ src/domain/       pure logic: types and ports, markdown, sentences, reading plan
 src/application/  player state machine, plugin <-> panel messages
 src/adapters/     speech engines (Web Speech, Google Translate, Azure, Google Cloud, Piper) and Piper storage
 src/webview/      player UI that runs inside the Joplin panel
-src/plugin.ts     Joplin integration and composition root (panel, commands, settings)
+src/compose/      composition root of the plugin process (Joplin API, Node globals)
+src/plugin.ts     Joplin integration (panel, commands, settings)
 test/mocks/     Joplin API mock for Jest
 doc/spec/       design documentation
 ```

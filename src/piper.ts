@@ -1,35 +1,18 @@
-import joplin from 'api';
-import * as fs from 'fs';
-import * as nodePath from 'path';
 import { PiperDialogController } from './application/piperDialog';
 import { PiperSynthesizeReply, PiperVoicesReply } from './application/messages';
 import { FetchFn, FsLike, PiperStorage } from './adapters/piperStorage';
 import { CreatePhonemizer, OrtLike, PiperRuntime, PiperSynthesizer } from './adapters/piperSynth';
 import { Settings } from './domain/types';
 
-/** Set by webpack for Node bundles: a `require` that is not rewritten by the bundler. */
-declare const __non_webpack_require__: ((id: string) => unknown) | undefined;
-
+/** Everything Piper needs from the platform; the composition root provides it. */
 export interface PiperDeps {
-	/** Folder for the runtime and the voices; defaults to `<plugin data folder>/piper`. */
-	dir?: string;
-	fs?: FsLike;
-	fetchFn?: FetchFn;
+	/** Folder for the runtime and the voices. */
+	dir: string;
+	fs: FsLike;
+	fetchFn: FetchFn;
 	/** Loads a downloaded script by its absolute path. */
-	requireFn?: (id: string) => unknown;
+	requireFn: (id: string) => unknown;
 }
-
-const defaultFetch: FetchFn = (url) => {
-	if (typeof fetch !== 'function') throw new Error('Downloads are not available here');
-	return fetch(url);
-};
-
-const defaultRequire = (id: string): unknown => {
-	if (typeof __non_webpack_require__ !== 'function') {
-		throw new Error('The Piper runtime cannot be loaded here');
-	}
-	return __non_webpack_require__(id);
-};
 
 /** Offline speech with downloaded Piper voices (plugin side). */
 export interface PiperService {
@@ -39,20 +22,18 @@ export interface PiperService {
 	voices(): Promise<PiperVoicesReply>;
 	/** True when at least one voice is downloaded. */
 	hasVoices(): Promise<boolean>;
+	/** True when the voice `id` is downloaded. */
+	hasVoice(id: string): Promise<boolean>;
 	/** Speaks `text`; an unknown or empty `voiceId` falls back to the saved voice, then to any downloaded one. */
 	synthesize(text: string, voiceId: string): Promise<PiperSynthesizeReply>;
 }
 
-export async function createPiper(
-	readSettings: () => Promise<Settings>,
-	deps: PiperDeps = {},
-): Promise<PiperService> {
-	const dir = deps.dir ?? nodePath.join(await joplin.plugins.dataDir(), 'piper');
-	const requireFn = deps.requireFn ?? defaultRequire;
+export function createPiper(readSettings: () => Promise<Settings>, deps: PiperDeps): PiperService {
+	const { requireFn } = deps;
 	const storage = new PiperStorage({
-		dir,
-		fs: deps.fs ?? (fs.promises as unknown as FsLike),
-		fetchFn: deps.fetchFn ?? defaultFetch,
+		dir: deps.dir,
+		fs: deps.fs,
+		fetchFn: deps.fetchFn,
 		catalogUrl: async () => (await readSettings()).piperCatalogUrl,
 	});
 	const synthesizer = new PiperSynthesizer({
@@ -84,6 +65,10 @@ export async function createPiper(
 
 		async hasVoices() {
 			return (await storage.installed()).length > 0;
+		},
+
+		async hasVoice(id) {
+			return (await storage.installed()).some((v) => v.id === id);
 		},
 
 		async synthesize(text, voiceId) {

@@ -1,12 +1,7 @@
-import joplin from 'api';
 import { DEFAULT_SETTINGS } from './domain/settings';
 import { Settings } from './domain/types';
 import { createPiper, PiperDeps } from './piper';
 import { FsLike } from './adapters/piperStorage';
-
-const j = joplin as unknown as {
-	plugins: { dataDir: jest.Mock };
-};
 
 const settings = (patch: Partial<Settings> = {}): Settings => ({ ...DEFAULT_SETTINGS, ...patch });
 
@@ -73,10 +68,6 @@ const fakeRequire = (id: string) =>
 		: jest.fn();
 
 describe('createPiper', () => {
-	beforeEach(() => {
-		j.plugins.dataDir.mockResolvedValue('/joplin/data');
-	});
-
 	it('lists the downloaded voices for the player', async () => {
 		const piper = await createPiper(async () => settings(), depsFor('pt_BR-faber-medium'));
 		await expect(piper.voices()).resolves.toEqual({
@@ -85,6 +76,8 @@ describe('createPiper', () => {
 		await expect(piper.hasVoices()).resolves.toBe(true);
 		const none = await createPiper(async () => settings(), depsFor());
 		await expect(none.hasVoices()).resolves.toBe(false);
+		await expect(piper.hasVoice('pt_BR-faber-medium')).resolves.toBe(true);
+		await expect(piper.hasVoice('en_US-amy-low')).resolves.toBe(false);
 	});
 
 	it('says how to get a voice when none is downloaded', async () => {
@@ -136,20 +129,6 @@ describe('createPiper', () => {
 		expect(spy2.mock.calls.map(([id]) => id)).toEqual(['en_US-amy-low']);
 	});
 
-	it('uses the plugin data folder by default and the voice catalog URL from the settings', async () => {
-		const fetchFn = jest.fn().mockResolvedValue({ ok: false, status: 500 });
-		const piper = await createPiper(
-			async () => settings({ piperCatalogUrl: 'https://mirror.test/v/' }),
-			{
-				fs: fsWith(),
-				fetchFn,
-			},
-		);
-		await expect(piper.storage.fetchCatalog()).rejects.toThrow('500');
-		expect(fetchFn).toHaveBeenCalledWith('https://mirror.test/v/voices.json');
-		expect(piper.storage.runtimeDir).toBe(require('path').join('/joplin/data', 'piper', 'runtime'));
-	});
-
 	it('loads the downloaded runtime scripts', async () => {
 		const deps = depsFor('pt_BR-faber-medium');
 		const requireFn = deps.requireFn as jest.Mock;
@@ -170,43 +149,5 @@ describe('createPiper', () => {
 			'ort.wasm.min.js',
 			'piper_phonemize.js',
 		]);
-	});
-
-	describe('default environment', () => {
-		const g = globalThis as { fetch?: unknown; __non_webpack_require__?: unknown };
-		afterEach(() => {
-			delete g.fetch;
-			delete g.__non_webpack_require__;
-		});
-
-		it('explains when downloads or the runtime cannot be used', async () => {
-			delete g.fetch;
-			const piper = await createPiper(async () => settings(), {
-				dir: require('path').join('/data', 'piper'),
-				fs: fsWith('pt_BR-faber-medium'),
-			});
-			loadableRuntime(piper);
-			await expect(piper.storage.fetchCatalog()).rejects.toThrow('Downloads are not available');
-			await expect(piper.synthesize('x', 'pt_BR-faber-medium')).resolves.toEqual({
-				ok: false,
-				error: 'The Piper runtime cannot be loaded here',
-			});
-		});
-
-		it('uses fetch and the bundler-independent require when they exist', async () => {
-			const fetchMock = jest.fn().mockResolvedValue({ ok: false, status: 404 });
-			g.fetch = fetchMock;
-			const requireMock = jest.fn().mockReturnValue({});
-			g.__non_webpack_require__ = requireMock;
-			const piper = await createPiper(async () => settings(), {
-				dir: require('path').join('/data', 'piper'),
-				fs: fsWith('pt_BR-faber-medium'),
-			});
-			await expect(piper.storage.fetchCatalog()).rejects.toThrow('404');
-			expect(fetchMock).toHaveBeenCalled();
-			jest.spyOn(piper.storage, 'ensureRuntime').mockResolvedValue(undefined);
-			await piper.synthesize('x', 'pt_BR-faber-medium');
-			expect(requireMock).toHaveBeenCalled();
-		});
 	});
 });

@@ -8,6 +8,7 @@ import {
 	PiperVoice,
 } from '../domain/piperCatalog';
 import { PIPER_RUNTIME_FILES, RuntimeFile } from '../domain/piperRuntime';
+import { PiperVoiceConfig } from '../domain/piperVoiceConfig';
 
 /** The subset of `fs.promises` used here (so tests can use a memory file system). */
 export interface FsLike {
@@ -21,13 +22,6 @@ export interface FsLike {
 }
 
 export type FetchFn = (url: string) => Promise<Response>;
-
-export interface PiperVoiceConfig {
-	audio: { sample_rate: number };
-	espeak: { voice: string };
-	inference: { noise_scale: number; length_scale: number; noise_w: number };
-	speaker_id_map?: Record<string, number>;
-}
 
 export interface PiperStorageOptions {
 	/** Folder owned by the plugin (Joplin's plugin data folder + `piper`). */

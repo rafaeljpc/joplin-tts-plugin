@@ -1,0 +1,7 @@
+/** The `.onnx.json` configuration that ships with every Piper voice (the parts that are used). */
+export interface PiperVoiceConfig {
+	audio: { sample_rate: number };
+	espeak: { voice: string };
+	inference: { noise_scale: number; length_scale: number; noise_w: number };
+	speaker_id_map?: Record<string, number>;
+}
