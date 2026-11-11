@@ -1,6 +1,6 @@
 {
   "name": "joplin-plugin-tts",
-  "version": "0.3.1",
+  "version": "0.4.0-dev",
   "description": "Read the open Joplin note aloud, sentence by sentence, with voice, play/pause and speed controls.",
   "scripts": {
     "dist": "webpack --env joplin-plugin-config=buildMain && webpack --env joplin-plugin-config=buildExtraScripts && webpack --env joplin-plugin-config=createArchive",
@@ -14,6 +14,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "coverage": "jest --coverage",
+    "test:integration": "tsc -p tsconfig.integration.json && node --test test/integration/piper.integration.cjs",
     "badges": "node .github/scripts/coverage-badges.cjs --badges .github/badges",
     "validate": "npm run lint && npm run format:check && npm run typecheck && npm run coverage && npm run badges"
   },
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@huggingface/transformers": "^4.3.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^18.19.0",
     "chalk": "^4.1.0",

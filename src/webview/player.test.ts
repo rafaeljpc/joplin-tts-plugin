@@ -387,3 +387,79 @@ describe('voice ordering', () => {
 		expect(names).toEqual([t.defaultVoice, 'Amy (en-US)', 'Zed (en-US)']);
 	});
 });
+
+describe('Piper', () => {
+	function setupPiper() {
+		document.body.innerHTML = '<div id="tts-root"></div>';
+		const posted: { type: string; [key: string]: unknown }[] = [];
+		const answers: { voices: unknown } = {
+			voices: { voices: [{ id: 'pt_BR-faber-medium', name: 'faber', lang: 'pt-BR' }] },
+		};
+		let listener: (m: unknown) => void = () => undefined;
+		const api: WebviewApiLike = {
+			postMessage: jest.fn(async (m) => {
+				posted.push(m as never);
+				if (m.type === 'piperVoices') {
+					if (answers.voices === 'fail') throw new Error('plugin unavailable');
+					return answers.voices;
+				}
+				return undefined;
+			}),
+			onMessage: (cb) => {
+				listener = cb;
+			},
+		};
+		const { scope } = makeScope();
+		initPlayer(document, api, scope);
+		const send = async (m: PluginToPanelMessage) => {
+			listener(m);
+			await flush();
+		};
+		const q = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
+		return { send, posted, answers, q };
+	}
+
+	it('createEngine builds the Piper engine on top of the plugin, or explains it cannot', async () => {
+		const { scope } = makeScope();
+		const request = jest
+			.fn()
+			.mockResolvedValue({ voices: [{ id: 'v', name: 'V', lang: 'pt-BR' }] });
+		const engine = createEngine(settings({ engine: 'piper' }), scope, t, request);
+		await expect(engine.listVoices()).resolves.toEqual([{ id: 'v', name: 'V', lang: 'pt-BR' }]);
+		const without = createEngine(settings({ engine: 'piper' }), scope, t);
+		await expect(without.speak('x', { voiceId: '', rate: 1 })).rejects.toThrow(t.unsupported);
+	});
+
+	it('lists the downloaded Piper voices in the player when Piper is the engine', async () => {
+		const { send, q } = setupPiper();
+		await send({
+			type: 'init',
+			settings: settings({ engine: 'piper', voice: 'pt_BR-faber-medium' }),
+		});
+		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('pt_BR-faber-medium');
+	});
+
+	it('lists the voices again when the plugin says they changed', async () => {
+		const { send, answers, q } = setupPiper();
+		answers.voices = { voices: [] };
+		await send({
+			type: 'init',
+			settings: settings({ engine: 'piper', voice: 'pt_BR-faber-medium' }),
+		});
+		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('');
+		answers.voices = { voices: [{ id: 'pt_BR-faber-medium', name: 'faber', lang: 'pt-BR' }] };
+		await send({ type: 'voices' });
+		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('pt_BR-faber-medium');
+		answers.voices = { voices: [{ id: 'other', name: 'other', lang: 'pt-BR' }] };
+		await send({ type: 'voices' }); // the saved voice was removed: back to the default
+		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('');
+	});
+
+	it('keeps working when the voices cannot be listed', async () => {
+		const { send, answers, q } = setupPiper();
+		answers.voices = 'fail';
+		await send({ type: 'init', settings: settings({ engine: 'piper' }) });
+		await send({ type: 'voices' });
+		expect(q('.tts-error').textContent).toContain('plugin unavailable');
+	});
+});

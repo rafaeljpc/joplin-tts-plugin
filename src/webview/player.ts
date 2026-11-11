@@ -1,13 +1,10 @@
-import { AzureSpeechEngine } from '../adapters/azureEngine';
-import { GoogleCloudEngine } from '../adapters/googleCloudEngine';
-import { GoogleTranslateEngine } from '../adapters/googleTranslateEngine';
+import { buildEngine, EngineEnv } from './engines';
 import { getStrings, Strings } from './i18n';
 import { createView, PlayerView } from './playerView';
 import { PlayerController } from '../application/player';
 import { DEFAULT_SETTINGS } from '../domain/settings';
 import { PanelToPluginMessage, PluginToPanelMessage } from '../application/messages';
 import { Settings, TtsEngine, Voice } from '../domain/types';
-import { WebSpeechEngine } from '../adapters/webSpeechEngine';
 
 export interface WebviewApiLike {
 	postMessage(message: PanelToPluginMessage): Promise<unknown>;
@@ -25,52 +22,17 @@ export interface WebviewScope {
 
 export const RATE_CHOICES = [0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 
-/** Engine used when the selected engine cannot work; every call explains why. */
-class UnavailableEngine implements TtsEngine {
-	constructor(private reason: string) {}
-	async listVoices(): Promise<Voice[]> {
-		return [];
-	}
-	speak(): Promise<void> {
-		return Promise.reject(new Error(this.reason));
-	}
-	cancel(): void {}
+/** Builds the engine for `settings`; the engines themselves are registered in `engines.ts`. */
+export function createEngine(
+	settings: Settings,
+	scope: WebviewScope,
+	t: Strings,
+	/** Sends a message to the plugin and resolves with its answer (needed by Piper). */
+	request?: (message: PanelToPluginMessage) => Promise<unknown>,
+): TtsEngine {
+	return buildEngine(settings, { scope, t, request });
 }
 
-export function createEngine(settings: Settings, scope: WebviewScope, t: Strings): TtsEngine {
-	const fetchFn = (url: string, init?: RequestInit) => scope.fetch(url, init);
-	const createAudio = (src: string) => new scope.Audio(src);
-	switch (settings.engine) {
-		case 'google-cloud':
-			if (!settings.googleApiKey) return new UnavailableEngine(t.missingGoogleKey);
-			return new GoogleCloudEngine({
-				apiKey: settings.googleApiKey,
-				languageCode: settings.language,
-				fetchFn,
-				createAudio,
-			});
-		case 'azure':
-			if (!settings.azureApiKey) return new UnavailableEngine(t.missingAzureKey);
-			return new AzureSpeechEngine({
-				apiKey: settings.azureApiKey,
-				region: settings.azureRegion,
-				languageCode: settings.language,
-				fetchFn,
-				createAudio,
-				createObjectUrl: (blob) => scope.URL.createObjectURL(blob),
-				revokeObjectUrl: (url) => scope.URL.revokeObjectURL(url),
-			});
-		case 'google-translate':
-			return new GoogleTranslateEngine({ languageCode: settings.language, createAudio });
-		default:
-			if (!scope.speechSynthesis || !scope.SpeechSynthesisUtterance) {
-				return new UnavailableEngine(t.unsupported);
-			}
-			return new WebSpeechEngine(scope.speechSynthesis, scope.SpeechSynthesisUtterance);
-	}
-}
-
-/** Joplin may deliver the payload directly or wrapped as `{ message }`. */
 export function unwrapMessage(raw: unknown): PluginToPanelMessage | null {
 	const candidate = (raw as { message?: unknown } | null)?.message ?? raw;
 	const type = (candidate as { type?: unknown } | null)?.type;
@@ -78,12 +40,7 @@ export function unwrapMessage(raw: unknown): PluginToPanelMessage | null {
 }
 
 /** The settings of the panel and what depends on them (engine, voices, rate). */
-function createSettingsManager(
-	controller: PlayerController,
-	view: PlayerView,
-	scope: WebviewScope,
-	t: Strings,
-) {
+function createSettingsManager(controller: PlayerController, view: PlayerView, env: EngineEnv) {
 	let settings: Settings = { ...DEFAULT_SETTINGS };
 	// Ids of the voices of the current engine; null when listing failed.
 	let voiceIds: Set<string> | null = null;
@@ -118,7 +75,7 @@ function createSettingsManager(
 			const replaceEngine = first || engineSignature(next) !== engineSignature(settings);
 			settings = next;
 			if (replaceEngine) {
-				controller.setEngine(createEngine(settings, scope, t));
+				controller.setEngine(buildEngine(settings, env));
 				view.showError(null);
 				await fillVoices();
 			}
@@ -126,6 +83,11 @@ function createSettingsManager(
 			// A voice saved for another engine is unknown here: fall back to the default.
 			controller.setVoice(voiceIds && !voiceIds.has(settings.voice) ? '' : settings.voice);
 			fillRates();
+		},
+		/** Lists the voices again (after voices were downloaded or removed) and keeps the selected one. */
+		async refreshVoices() {
+			await fillVoices();
+			controller.setVoice(voiceIds && !voiceIds.has(settings.voice) ? '' : settings.voice);
 		},
 		/** Applies a change made by the user in the panel. */
 		change(patch: Partial<Pick<Settings, 'rate' | 'voice'>>) {
@@ -139,7 +101,9 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	const root = doc.getElementById('tts-root');
 	if (!root) throw new Error('Missing #tts-root element');
 
-	const controller = new PlayerController(createEngine({ ...DEFAULT_SETTINGS }, scope, t));
+	const request = (message: PanelToPluginMessage) => api.postMessage(message);
+	const env: EngineEnv = { scope, t, request };
+	const controller = new PlayerController(buildEngine({ ...DEFAULT_SETTINGS }, env));
 	let title = '';
 
 	const save = (patch: Partial<Settings>) => void api.postMessage({ type: 'saveSettings', patch });
@@ -171,7 +135,7 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 			save({ voice });
 		},
 	});
-	const settingsManager = createSettingsManager(controller, view, scope, t);
+	const settingsManager = createSettingsManager(controller, view, env);
 
 	const handleMessage = (message: PluginToPanelMessage) => {
 		switch (message.type) {
@@ -189,6 +153,9 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 				break;
 			case 'stop':
 				controller.stop();
+				break;
+			case 'voices':
+				void settingsManager.refreshVoices();
 				break;
 		}
 	};

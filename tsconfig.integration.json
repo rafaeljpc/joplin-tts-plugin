@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".cache/integration-build",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": [
+    "src/piper.ts",
+    "src/adapters/ortLoader.ts",
+    "src/domain/settings.ts",
+    "src/domain/piperCatalog.ts"
+  ]
+}

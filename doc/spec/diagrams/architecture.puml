@@ -1,0 +1,118 @@
+@startuml architecture
+title Joplin Text-to-Speech: components and layers
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+left to right direction
+
+actor "User" as user
+
+package "Joplin (host)" as joplin {
+  component "Note editor\n(CodeMirror 6)" as editor
+  component "Note viewer\n(rendered markdown)" as viewer
+  component "Plugin API\n(panels, settings, commands, dataDir)" as api
+}
+
+package "Plugin process (Node)" as pluginproc {
+  package "Composition root" as root {
+    component "plugin.ts\nsettings, commands, panel, menus" as plugin
+    component "piper.ts\nPiper service" as piper
+    component "piperPicker.ts\nvoice screen flow (gate)" as picker
+    component "editor / viewer\ncontent scripts" as scripts
+  }
+  package "adapters (Node side)" as adaptersN {
+    component "PiperStorage\nfolder + downloads + SHA-256" as pstorage
+    component "PiperSynthesizer\neSpeak + ONNX Runtime (WASM)" as psynth
+  }
+}
+
+package "Player panel (webview)" as panel {
+  package "webview" as webview {
+    component "player.ts\nview + settings + messages" as player
+    component "voicePickerView.ts\nvoice screen DOM" as pview
+    component "playerView.ts, i18n,\nviewerHighlight, viewerSelection" as views
+  }
+  package "adapters (panel side)" as adaptersP {
+    component "WebSpeechEngine" as ws
+    component "GoogleTranslateEngine" as gt
+    component "GoogleCloudEngine" as gc
+    component "AzureEngine" as az
+    component "PiperEngine" as pe
+    component "AudioSlot, PrefetchCache" as audio
+  }
+}
+
+package "application" as application {
+  component "PlayerController\nstate machine" as ctrl
+  component "PiperDialogController\nvoice list/download/select" as dctrl
+  interface "PiperStore (port)" as pstore
+  component "messages.ts\nplugin <-> panel protocol" as msgs
+}
+
+package "domain (pure)" as domain {
+  component "markdown, sentences,\nchunks, plan, locate" as text
+  component "settings, types\n(TtsEngine port)" as types
+  component "piperCatalog,\npiperRuntime, wav" as dpiper
+}
+
+cloud "Internet" as net {
+  component "Hugging Face\nrhasspy/piper-voices" as hf
+  component "CDN\neSpeak + ONNX Runtime" as cdn
+  component "Google / Azure\nspeech APIs" as cloudapis
+}
+
+database "<dataDir>/piper\nruntime/ voices/<id>/" as disk
+
+user --> editor
+user --> viewer
+user --> player : play, pause,\nspeed, voice
+editor --> scripts
+viewer --> scripts
+scripts --> plugin
+plugin --> api
+plugin --> piper
+plugin --> picker
+picker --> piper
+piper --> pstorage
+piper --> psynth
+piper --> dctrl
+pstorage ..|> pstore
+dctrl --> pstore
+pstorage --> disk
+psynth --> disk
+pstorage --> hf : voices.json,\n.onnx
+pstorage --> cdn : runtime (pinned)
+
+plugin <--> player : postMessage
+player --> ctrl
+player --> pview
+player --> views
+player --> ws
+player --> gt
+player --> gc
+player --> az
+player --> pe
+pe --> plugin : piperSynthesize\n(WAV base64)
+pview --> plugin : piperPicker
+gt --> audio
+gc --> audio
+az --> audio
+pe --> audio
+gt --> cloudapis
+gc --> cloudapis
+az --> cloudapis
+
+ctrl --> text
+ctrl --> types
+adaptersP ..> types : implements TtsEngine
+pstorage --> dpiper
+psynth --> dpiper
+dctrl --> dpiper
+plugin --> msgs
+player --> msgs
+
+note bottom of domain
+  Dependency rule (enforced by ESLint):
+  domain <- application <- adapters <- webview <- root.
+  Inner layers never import outer ones.
+end note
+@enduml
