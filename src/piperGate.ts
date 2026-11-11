@@ -9,7 +9,6 @@ export interface GateVoices {
 /** What the gate needs from the voice screen. */
 export interface GatePicker {
 	open(revertTo: EngineId | null): Promise<void>;
-	dismiss(): Promise<void>;
 }
 
 /**
@@ -46,7 +45,6 @@ export class PiperGate {
 	async settingsChanged(settings: Settings): Promise<void> {
 		if (settings.engine !== 'piper') {
 			this.lastNonPiper = settings.engine;
-			await this.picker.dismiss();
 		} else if (!this.engineWasPiper && !(await this.voices.hasVoice(settings.voice))) {
 			// Piper was just chosen: it needs a downloaded voice before the settings can be left.
 			await this.picker.open(this.lastNonPiper);

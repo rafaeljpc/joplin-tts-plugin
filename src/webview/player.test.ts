@@ -2,15 +2,7 @@ import { getStrings } from './i18n';
 import { DEFAULT_SETTINGS } from '../domain/settings';
 import { PluginToPanelMessage } from '../application/messages';
 import { Settings } from '../domain/types';
-import { DialogState } from '../application/piperDialog';
-import {
-	createEngine,
-	initPlayer,
-	PICKER_POLL_MS,
-	unwrapMessage,
-	WebviewApiLike,
-	WebviewScope,
-} from './player';
+import { createEngine, initPlayer, unwrapMessage, WebviewApiLike, WebviewScope } from './player';
 
 const t = getStrings('en');
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -397,41 +389,16 @@ describe('voice ordering', () => {
 });
 
 describe('Piper', () => {
-	const pickerState = (patch: Partial<DialogState> = {}): DialogState => ({
-		voices: [
-			{
-				id: 'pt_BR-faber-medium',
-				name: 'faber',
-				language: 'pt_BR',
-				quality: 'medium',
-				sizeBytes: 63_000_000,
-				installed: true,
-			},
-		],
-		languages: ['pt_BR'],
-		language: 'pt_BR',
-		online: true,
-		selected: 'pt_BR-faber-medium',
-		downloading: null,
-		error: null,
-		notice: null,
-		...patch,
-	});
-
-	function setupPicker() {
+	function setupPiper() {
 		document.body.innerHTML = '<div id="tts-root"></div>';
 		const posted: { type: string; [key: string]: unknown }[] = [];
-		const answers: { state: DialogState; done: unknown; voices: unknown } = {
-			state: pickerState(),
-			done: { ok: true },
+		const answers: { voices: unknown } = {
 			voices: { voices: [{ id: 'pt_BR-faber-medium', name: 'faber', lang: 'pt-BR' }] },
 		};
 		let listener: (m: unknown) => void = () => undefined;
 		const api: WebviewApiLike = {
 			postMessage: jest.fn(async (m) => {
 				posted.push(m as never);
-				if (m.type === 'piperPicker') return answers.state;
-				if (m.type === 'piperPickerDone') return answers.done;
 				if (m.type === 'piperVoices') {
 					if (answers.voices === 'fail') throw new Error('plugin unavailable');
 					return answers.voices;
@@ -464,7 +431,7 @@ describe('Piper', () => {
 	});
 
 	it('lists the downloaded Piper voices in the player when Piper is the engine', async () => {
-		const { send, q } = setupPicker();
+		const { send, q } = setupPiper();
 		await send({
 			type: 'init',
 			settings: settings({ engine: 'piper', voice: 'pt_BR-faber-medium' }),
@@ -472,106 +439,27 @@ describe('Piper', () => {
 		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('pt_BR-faber-medium');
 	});
 
-	it('keeps working when the voices cannot be listed after the voice screen closes', async () => {
-		const { send, answers, q } = setupPicker();
+	it('lists the voices again when the plugin says they changed', async () => {
+		const { send, answers, q } = setupPiper();
+		answers.voices = { voices: [] };
+		await send({
+			type: 'init',
+			settings: settings({ engine: 'piper', voice: 'pt_BR-faber-medium' }),
+		});
+		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('');
+		answers.voices = { voices: [{ id: 'pt_BR-faber-medium', name: 'faber', lang: 'pt-BR' }] };
+		await send({ type: 'voices' });
+		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('pt_BR-faber-medium');
+		answers.voices = { voices: [{ id: 'other', name: 'other', lang: 'pt-BR' }] };
+		await send({ type: 'voices' }); // the saved voice was removed: back to the default
+		expect(q<HTMLSelectElement>('.tts-voice').value).toBe('');
+	});
+
+	it('keeps working when the voices cannot be listed', async () => {
+		const { send, answers, q } = setupPiper();
 		answers.voices = 'fail';
 		await send({ type: 'init', settings: settings({ engine: 'piper' }) });
-		await send({ type: 'openVoicePicker', revertible: true });
-		q('.tts-picker-confirm').click();
-		await flush();
-		expect(q('.tts-picker').hidden).toBe(true);
+		await send({ type: 'voices' });
 		expect(q('.tts-error').textContent).toContain('plugin unavailable');
-	});
-
-	it('shows the voice screen over the player and stops what was playing', async () => {
-		const { send, posted, q } = setupPicker();
-		await send({
-			type: 'load',
-			title: 'T',
-			sentences: ['One.', 'Two.'],
-			startIndex: 0,
-			autoplay: true,
-		});
-		await send({ type: 'openVoicePicker', revertible: true });
-		expect(q('.tts-picker').hidden).toBe(false);
-		expect(q('.tts-picker-cancel').textContent).toBe(t.piperUseOther);
-		expect(q('.tts-picker-name').textContent).toBe('faber (pt-BR, medium)');
-		expect(posted).toContainEqual({ type: 'piperPicker', request: { type: 'state' } });
-		expect(q('.tts-play').textContent).toBe('▶'); // stopped
-		await send({ type: 'closeVoicePicker' });
-		expect(q('.tts-picker').hidden).toBe(true);
-	});
-
-	it('forwards what the user does in the voice screen', async () => {
-		const { send, posted, q } = setupPicker();
-		await send({ type: 'openVoicePicker', revertible: false });
-		q<HTMLInputElement>('input[type=radio]').dispatchEvent(new Event('change'));
-		await flush();
-		expect(posted).toContainEqual({
-			type: 'piperPicker',
-			request: { type: 'select', id: 'pt_BR-faber-medium' },
-		});
-	});
-
-	it('confirming closes the screen and lists the voices again; giving up reports it', async () => {
-		const { send, posted, q } = setupPicker();
-		await send({ type: 'openVoicePicker', revertible: true });
-		q('.tts-picker-confirm').click();
-		await flush();
-		expect(posted).toContainEqual({ type: 'piperPickerDone', confirm: true });
-		expect(q('.tts-picker').hidden).toBe(true);
-
-		await send({ type: 'openVoicePicker', revertible: true });
-		q('.tts-picker-cancel').click();
-		await flush();
-		expect(posted).toContainEqual({ type: 'piperPickerDone', confirm: false });
-	});
-
-	it('stays open, with the reason, when the plugin refuses to confirm', async () => {
-		const { send, answers, q } = setupPicker();
-		answers.done = { ok: false, state: pickerState({ notice: 'choose-voice' }) };
-		await send({ type: 'openVoicePicker', revertible: true });
-		q('.tts-picker-confirm').click();
-		await flush();
-		expect(q('.tts-picker').hidden).toBe(false);
-		expect(q('.tts-picker-message').textContent).toBe(t.piperChooseFirst);
-	});
-
-	it('closes without error when the plugin gives no answer', async () => {
-		const { send, answers, q } = setupPicker();
-		answers.done = undefined;
-		await send({ type: 'openVoicePicker', revertible: true });
-		q('.tts-picker-cancel').click();
-		await flush();
-		expect(q('.tts-picker').hidden).toBe(true);
-	});
-
-	it('asks for the download progress while the screen is open, and stops when it closes', async () => {
-		jest.useFakeTimers();
-		try {
-			const { send, posted } = setupPicker();
-			const listenerCall = async (m: PluginToPanelMessage) => {
-				await send(m).catch(() => undefined);
-			};
-			void listenerCall({ type: 'openVoicePicker', revertible: true });
-			await jest.advanceTimersByTimeAsync(0);
-			const requests = () => posted.filter((m) => m.type === 'piperPicker').length;
-			const first = requests();
-			await jest.advanceTimersByTimeAsync(PICKER_POLL_MS);
-			expect(requests()).toBe(first + 1);
-			// Opening again does not start a second timer.
-			void listenerCall({ type: 'openVoicePicker', revertible: true });
-			await jest.advanceTimersByTimeAsync(0);
-			const afterReopen = requests();
-			await jest.advanceTimersByTimeAsync(PICKER_POLL_MS);
-			expect(requests()).toBe(afterReopen + 1);
-			void listenerCall({ type: 'closeVoicePicker' });
-			await jest.advanceTimersByTimeAsync(0);
-			const stopped = requests();
-			await jest.advanceTimersByTimeAsync(PICKER_POLL_MS * 3);
-			expect(requests()).toBe(stopped);
-		} finally {
-			jest.useRealTimers();
-		}
 	});
 });

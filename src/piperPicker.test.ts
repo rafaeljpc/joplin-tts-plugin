@@ -13,125 +13,96 @@ const VOICE = {
 	sizeBytes: 5,
 };
 
-function setup(settings: Partial<Settings> = {}, installed = [VOICE]) {
+function setup(settings: Partial<Settings> = {}, choices: ('confirm' | 'giveup')[] = ['giveup']) {
 	const store: PiperStore = {
 		fetchCatalog: jest.fn().mockResolvedValue([VOICE]),
-		installed: jest.fn().mockResolvedValue(installed),
+		installed: jest.fn().mockResolvedValue([VOICE]),
 		download: jest.fn(),
 		remove: jest.fn(),
 	};
 	const controller = new PiperDialogController(store);
 	const current: Settings = { ...DEFAULT_SETTINGS, ...settings };
-	const host: jest.Mocked<PickerHost> = {
+	const queue = [...choices];
+	const host = {
 		settings: jest.fn(async () => current),
 		set: jest.fn(async (key, value) => {
 			(current as unknown as Record<string, string>)[key] = value;
 		}),
-		showPanel: jest.fn().mockResolvedValue(undefined),
-		send: jest.fn().mockResolvedValue(undefined),
+		showDialog: jest.fn(async () => queue.shift() ?? 'giveup'),
 	};
-	return { flow: new VoicePickerFlow(controller, host), host, controller, current };
+	return {
+		flow: new VoicePickerFlow(controller, host as unknown as PickerHost),
+		host,
+		controller,
+		current,
+	};
 }
 
 describe('VoicePickerFlow', () => {
-	it('opens over the player and tells the panel whether it can go back to another engine', async () => {
+	it('tells the dialog whether giving up goes back to another engine', async () => {
 		const { flow, host } = setup({ language: 'en-US' });
 		await flow.open('webspeech');
-		expect(flow.isOpen).toBe(true);
-		expect(host.showPanel).toHaveBeenCalled();
-		expect(host.send).toHaveBeenCalledWith({ type: 'openVoicePicker', revertible: true });
-
+		expect(host.showDialog).toHaveBeenCalledWith(true);
 		const other = setup();
 		await other.flow.open(null);
-		expect(other.host.send).toHaveBeenCalledWith({ type: 'openVoicePicker', revertible: false });
+		expect(other.host.showDialog).toHaveBeenCalledWith(false);
 	});
 
-	it('ignores a second open while it is open, and can resend for a panel that was not ready', async () => {
-		const { flow, host } = setup();
-		await flow.open('webspeech');
-		await flow.open('azure');
-		expect(host.showPanel).toHaveBeenCalledTimes(1);
-		host.send.mockClear();
-		await flow.resend();
-		expect(host.send).toHaveBeenCalledTimes(1);
-
-		const closed = setup();
-		await closed.flow.resend();
-		expect(closed.host.send).not.toHaveBeenCalled();
-	});
-
-	it('answers requests through the dialog controller', async () => {
-		const { flow } = setup();
-		await flow.open('webspeech');
-		const state = await flow.request({ type: 'select', id: VOICE.id });
-		expect(state.selected).toBe(VOICE.id);
-	});
-
-	it('confirming a voice saves it and switches to the Piper engine', async () => {
-		const { flow, host, current } = setup();
-		await flow.open('webspeech');
-		await flow.request({ type: 'select', id: VOICE.id });
-		await expect(flow.done(true)).resolves.toEqual({ ok: true });
-		expect(host.set).toHaveBeenNthCalledWith(1, 'voice', VOICE.id);
-		expect(host.set).toHaveBeenNthCalledWith(2, 'engine', 'piper');
-		expect(current).toMatchObject({ voice: VOICE.id, engine: 'piper' });
-		expect(flow.isOpen).toBe(false);
-	});
-
-	it('does not touch the engine when it is already Piper', async () => {
-		const { flow, host } = setup({ engine: 'piper' });
-		await flow.open(null);
-		await flow.request({ type: 'select', id: VOICE.id });
-		await flow.done(true);
-		expect(host.set).toHaveBeenCalledTimes(1);
-	});
-
-	it('refuses to confirm without a downloaded voice selected and stays open', async () => {
-		const { flow, host } = setup({}, []);
-		await flow.open('webspeech');
-		const reply = await flow.done(true);
-		expect(reply).toMatchObject({ ok: false, state: { notice: 'choose-voice' } });
-		expect(flow.isOpen).toBe(true);
-		expect(host.set).not.toHaveBeenCalled();
-	});
-
-	it('giving up goes back to the previous engine', async () => {
+	it('giving up goes back to the previous engine, or just closes without one', async () => {
 		const { flow, host } = setup({ engine: 'piper' });
 		await flow.open('azure');
-		await expect(flow.done(false)).resolves.toEqual({ ok: true });
 		expect(host.set).toHaveBeenCalledWith('engine', 'azure');
 		expect(flow.isOpen).toBe(false);
+		const none = setup({ engine: 'azure' });
+		await none.flow.open(null);
+		expect(none.host.set).not.toHaveBeenCalled();
 	});
 
-	it('giving up with nowhere to go back to just closes', async () => {
-		const { flow, host } = setup();
-		await flow.open(null);
-		await flow.done(false);
-		expect(host.set).not.toHaveBeenCalled();
-		expect(flow.isOpen).toBe(false);
+	it('confirming saves the voice and makes Piper the engine', async () => {
+		const { flow, host, controller } = setup({ engine: 'azure' }, ['confirm']);
+		const open = controller.open.bind(controller);
+		jest.spyOn(controller, 'open').mockImplementation(async (language, voice) => {
+			await open(language, voice);
+			await controller.handle({ type: 'select', id: VOICE.id });
+		});
+		await flow.open('azure');
+		expect(host.set).toHaveBeenCalledWith('voice', VOICE.id);
+		expect(host.set).toHaveBeenCalledWith('engine', 'piper');
 	});
 
-	it('closing the panel counts as giving up', async () => {
-		const { flow, host } = setup({ engine: 'piper' });
+	it('does not set the engine again when it is already Piper', async () => {
+		const { flow, host, controller } = setup({ engine: 'piper', voice: VOICE.id }, ['confirm']);
+		void controller;
 		await flow.open('webspeech');
-		await flow.panelClosed();
+		expect(host.set).toHaveBeenCalledWith('voice', VOICE.id);
+		expect(host.set).not.toHaveBeenCalledWith('engine', expect.anything());
+	});
+
+	it('shows the dialog again, asking for a voice, when it is confirmed without one', async () => {
+		const { flow, host, controller } = setup({ voice: '' }, ['confirm', 'giveup']);
+		await flow.open('webspeech');
+		expect(host.showDialog).toHaveBeenCalledTimes(2);
+		expect(controller.state().notice).toBe('choose-voice');
 		expect(host.set).toHaveBeenCalledWith('engine', 'webspeech');
 	});
 
-	it('done is a no-op when the screen is not open', async () => {
+	it('ignores a second open while it is open, and relays the dialog requests', async () => {
 		const { flow, host } = setup();
-		await expect(flow.done(true)).resolves.toEqual({ ok: true });
-		expect(host.set).not.toHaveBeenCalled();
+		host.showDialog.mockImplementationOnce(async () => {
+			expect(flow.isOpen).toBe(true);
+			await flow.open('azure');
+			const state = await flow.request({ type: 'state' });
+			expect(state.voices).toHaveLength(1);
+			return 'giveup';
+		});
+		await flow.open('webspeech');
+		expect(host.showDialog).toHaveBeenCalledTimes(1);
 	});
 
-	it('dismiss closes the screen in the panel only when it is open', async () => {
+	it('is usable again after the dialog fails to open', async () => {
 		const { flow, host } = setup();
-		await flow.dismiss();
-		expect(host.send).not.toHaveBeenCalled();
-		await flow.open('webspeech');
-		host.send.mockClear();
-		await flow.dismiss();
-		expect(host.send).toHaveBeenCalledWith({ type: 'closeVoicePicker' });
+		host.showDialog.mockRejectedValueOnce(new Error('no dialog'));
+		await expect(flow.open(null)).rejects.toThrow('no dialog');
 		expect(flow.isOpen).toBe(false);
 	});
 });

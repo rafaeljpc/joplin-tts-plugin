@@ -1,0 +1,56 @@
+/* Piper voice dialog */
+.tts-picker {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 420px;
+	max-width: 640px;
+	max-height: 70vh;
+	overflow-y: auto;
+	color: var(--joplin-color);
+	font-family: var(--joplin-font-family);
+	font-size: var(--joplin-font-size);
+}
+
+.tts-picker-title {
+	font-weight: bold;
+}
+
+.tts-picker-intro,
+.tts-picker-message {
+	font-size: 0.9em;
+	opacity: 0.85;
+}
+
+.tts-picker-message {
+	color: var(--joplin-color-error, #c0392b);
+	opacity: 1;
+}
+
+.tts-picker-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-height: 6em;
+}
+
+.tts-picker-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px;
+	border-bottom: 1px solid var(--joplin-divider-color);
+}
+
+.tts-picker-name {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.tts-picker-size,
+.tts-picker-status {
+	font-size: 0.85em;
+	opacity: 0.8;
+	white-space: nowrap;
+}

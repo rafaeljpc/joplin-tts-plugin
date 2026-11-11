@@ -2,18 +2,12 @@ import { DialogRequest, DialogState, DialogVoice } from '../application/piperDia
 import { formatSize } from '../domain/piperCatalog';
 import { format, Strings } from './i18n';
 
-/** What the user can do in the voice screen. The view only reports; it holds no logic. */
+/** What the user can do in the voice dialog. The view only reports; it holds no logic. */
 export interface VoicePickerHandlers {
 	onRequest(request: DialogRequest): void;
-	/** `confirm`: use the selected voice; otherwise the user chose another engine (or closed). */
-	onDone(confirm: boolean): void;
 }
 
 export interface VoicePickerView {
-	readonly visible: boolean;
-	/** `revertible`: the user may give up by switching to another engine. */
-	show(revertible: boolean): void;
-	hide(): void;
 	render(state: DialogState): void;
 }
 
@@ -32,7 +26,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 /** `pt_BR` as shown to people: `pt-BR`. */
 const locale = (code: string): string => code.replace('_', '-');
 
-/** The screen to download and pick Piper voices, drawn over the player inside `root`. */
+/** The content of the dialog to download and pick Piper voices, drawn inside `root`. */
 export function createVoicePicker(
 	doc: Document,
 	root: HTMLElement,
@@ -45,25 +39,15 @@ export function createVoicePicker(
 		title: t.piperLanguage,
 	});
 	const list = el(doc, 'div', { className: 'tts-picker-list' });
-	const confirmBtn = el(doc, 'button', {
-		className: 'tts-picker-confirm',
-		textContent: t.piperUse,
-	});
-	const cancelBtn = el(doc, 'button', { className: 'tts-picker-cancel' });
-	const screen = el(doc, 'div', { className: 'tts-picker', hidden: true }, [
+	const screen = el(doc, 'div', { className: 'tts-picker' }, [
 		el(doc, 'div', { className: 'tts-picker-title', textContent: t.piperTitle }),
 		el(doc, 'div', { className: 'tts-picker-intro', textContent: t.piperIntro }),
 		languageSelect,
 		message,
 		list,
-		el(doc, 'div', { className: 'tts-picker-buttons' }, [confirmBtn, cancelBtn]),
 	]);
 	root.append(screen);
 
-	let selected = '';
-
-	confirmBtn.onclick = () => handlers.onDone(true);
-	cancelBtn.onclick = () => handlers.onDone(false);
 	languageSelect.onchange = () =>
 		handlers.onRequest({ type: 'state', language: languageSelect.value });
 
@@ -114,30 +98,14 @@ export function createVoicePicker(
 	};
 
 	const text = (state: DialogState): string => {
+		if (!state.online && state.voices.length === 0) return t.piperNoChoices;
 		if (state.notice === 'choose-voice') return t.piperChooseFirst;
 		if (state.error) return t.errorPrefix + state.error;
-		if (!state.online) {
-			return state.voices.length === 0 ? t.piperNoChoices : t.piperOffline;
-		}
-		return '';
+		return state.online ? '' : t.piperOffline;
 	};
 
 	return {
-		get visible() {
-			return !screen.hidden;
-		},
-
-		show(revertible) {
-			cancelBtn.textContent = revertible ? t.piperUseOther : t.close;
-			screen.hidden = false;
-		},
-
-		hide() {
-			screen.hidden = true;
-		},
-
 		render(state) {
-			selected = state.selected;
 			languageSelect.replaceChildren(
 				el(doc, 'option', {
 					value: '',
@@ -155,9 +123,6 @@ export function createVoicePicker(
 			message.textContent = text(state);
 			message.hidden = message.textContent === '';
 			list.replaceChildren(...state.voices.map((voice) => row(voice, state)));
-			const nothingToChoose = !state.online && state.voices.length === 0;
-			confirmBtn.hidden = nothingToChoose;
-			confirmBtn.disabled = selected === '' || state.downloading !== null;
 		},
 	};
 }

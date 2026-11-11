@@ -36,10 +36,13 @@ export const PIPER_RUNTIME_FILES: RuntimeFile[] = [
 		sizeBytes: 18_077_249,
 	},
 	{
+		// The CommonJS build: it ends in `module.exports=...`. The plain
+		// `dist/ort.wasm.min.js` is a browser IIFE (`var ort=(()=>{...})();`), so
+		// `require()` returns `{}` from it.
 		name: 'ort.wasm.min.js',
-		url: `${ORT}ort.wasm.min.js`,
-		sha256: '90533a3fd7006df7f897c0d63c468996da5c8e430e39964d92ebe586c4996614',
-		sizeBytes: 142_930,
+		url: `${ORT}cjs/ort.wasm.min.js`,
+		sha256: '40e42b78b8f422bc2b2fe057168cd7d6444f04bc172753f5753a51af9cb35cbd',
+		sizeBytes: 142_919,
 	},
 	{
 		name: 'ort-wasm-simd.wasm',

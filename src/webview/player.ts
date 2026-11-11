@@ -1,15 +1,9 @@
 import { buildEngine, EngineEnv } from './engines';
 import { getStrings, Strings } from './i18n';
 import { createView, PlayerView } from './playerView';
-import { createVoicePicker, VoicePickerView } from './voicePickerView';
-import { DialogRequest, DialogState } from '../application/piperDialog';
 import { PlayerController } from '../application/player';
 import { DEFAULT_SETTINGS } from '../domain/settings';
-import {
-	PanelToPluginMessage,
-	PiperPickerDoneReply,
-	PluginToPanelMessage,
-} from '../application/messages';
+import { PanelToPluginMessage, PluginToPanelMessage } from '../application/messages';
 import { Settings, TtsEngine, Voice } from '../domain/types';
 
 export interface WebviewApiLike {
@@ -27,9 +21,6 @@ export interface WebviewScope {
 }
 
 export const RATE_CHOICES = [0.75, 1, 1.25, 1.5, 2, 2.5, 3];
-
-/** How often the open voice screen asks the plugin for download progress. */
-export const PICKER_POLL_MS = 500;
 
 /** Builds the engine for `settings`; the engines themselves are registered in `engines.ts`. */
 export function createEngine(
@@ -146,38 +137,6 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	});
 	const settingsManager = createSettingsManager(controller, view, env);
 
-	// The Piper voice screen, over the player: voices are downloaded and chosen here.
-	const refreshPicker = async (message: DialogRequest = { type: 'state' }) => {
-		picker.render(
-			(await api.postMessage({ type: 'piperPicker', request: message })) as DialogState,
-		);
-	};
-	let pollTimer: ReturnType<typeof setInterval> | null = null;
-	const picker: VoicePickerView = createVoicePicker(doc, root, t, {
-		onRequest: (message) => void refreshPicker(message),
-		async onDone(confirm) {
-			const reply = (await api.postMessage({
-				type: 'piperPickerDone',
-				confirm,
-			})) as PiperPickerDoneReply | undefined;
-			if (reply && !reply.ok) picker.render(reply.state);
-			else closePicker(true);
-		},
-	});
-	const openPicker = (revertible: boolean) => {
-		controller.stop();
-		picker.show(revertible);
-		void refreshPicker();
-		// Download progress has no push channel: ask for it while the screen is open.
-		pollTimer ??= setInterval(() => void refreshPicker(), PICKER_POLL_MS);
-	};
-	const closePicker = (voicesChanged: boolean) => {
-		picker.hide();
-		if (pollTimer !== null) clearInterval(pollTimer);
-		pollTimer = null;
-		if (voicesChanged) void settingsManager.refreshVoices();
-	};
-
 	const handleMessage = (message: PluginToPanelMessage) => {
 		switch (message.type) {
 			case 'init':
@@ -195,11 +154,8 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 			case 'stop':
 				controller.stop();
 				break;
-			case 'openVoicePicker':
-				openPicker(message.revertible);
-				break;
-			case 'closeVoicePicker':
-				closePicker(false);
+			case 'voices':
+				void settingsManager.refreshVoices();
 				break;
 		}
 	};

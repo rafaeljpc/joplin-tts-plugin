@@ -13,7 +13,7 @@ function setup(initial: Settings, installed: string[] = []) {
 		hasVoices: jest.fn(async () => installed.length > 0),
 		hasVoice: jest.fn(async (id: string) => installed.includes(id)),
 	};
-	const picker = { open: jest.fn(async () => undefined), dismiss: jest.fn(async () => undefined) };
+	const picker = { open: jest.fn(async () => undefined) };
 	return { gate: new PiperGate(initial, voices, picker), picker };
 }
 
@@ -45,15 +45,17 @@ describe('PiperGate', () => {
 		expect(withVoice.picker.open).toHaveBeenLastCalledWith(null);
 	});
 
-	it('opens the screen when Piper is chosen without its saved voice, and dismisses it otherwise', async () => {
+	it('opens the screen when Piper is chosen without its saved voice, and remembers the engine otherwise', async () => {
 		const { gate, picker } = setup(settings('google-cloud'), ['v1']);
 		await gate.settingsChanged(settings('piper', 'missing'));
 		expect(picker.open).toHaveBeenCalledWith('google-cloud');
 		await gate.settingsChanged(settings('piper', 'missing')); // already Piper: no new screen
 		expect(picker.open).toHaveBeenCalledTimes(1);
 		await gate.settingsChanged(settings('azure'));
-		expect(picker.dismiss).toHaveBeenCalledTimes(1);
+		await gate.settingsChanged(settings('piper', 'missing')); // back to Piper, still no voice
+		expect(picker.open).toHaveBeenLastCalledWith('azure');
+		await gate.settingsChanged(settings('webspeech'));
 		await gate.settingsChanged(settings('piper', 'v1')); // saved voice exists
-		expect(picker.open).toHaveBeenCalledTimes(1);
+		expect(picker.open).toHaveBeenCalledTimes(2);
 	});
 });

@@ -29,7 +29,7 @@ const state = (patch: Partial<DialogState> = {}): DialogState => ({
 function setup() {
 	document.body.innerHTML = '<div id="root"></div>';
 	const root = document.getElementById('root') as HTMLElement;
-	const handlers: jest.Mocked<VoicePickerHandlers> = { onRequest: jest.fn(), onDone: jest.fn() };
+	const handlers: jest.Mocked<VoicePickerHandlers> = { onRequest: jest.fn() };
 	const view = createVoicePicker(document, root, t, handlers);
 	const q = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 	const all = (sel: string) => Array.from(document.querySelectorAll<HTMLElement>(sel));
@@ -37,18 +37,6 @@ function setup() {
 }
 
 describe('voice picker view', () => {
-	it('starts hidden and shows with the right label for leaving', () => {
-		const { view, q } = setup();
-		expect(view.visible).toBe(false);
-		view.show(true);
-		expect(view.visible).toBe(true);
-		expect(q('.tts-picker-cancel').textContent).toBe(t.piperUseOther);
-		view.show(false);
-		expect(q('.tts-picker-cancel').textContent).toBe(t.close);
-		view.hide();
-		expect(view.visible).toBe(false);
-	});
-
 	it('lists voices with language, quality, size and an action', () => {
 		const { view, q, all } = setup();
 		view.render(state());
@@ -113,12 +101,6 @@ describe('voice picker view', () => {
 		select.value = 'en_US';
 		select.dispatchEvent(new Event('change'));
 		expect(handlers.onRequest).toHaveBeenLastCalledWith({ type: 'state', language: 'en_US' });
-
-		view.render(state({ voices: [voice({ installed: true })], selected: 'pt_BR-faber-medium' }));
-		q('.tts-picker-confirm').click();
-		expect(handlers.onDone).toHaveBeenLastCalledWith(true);
-		q('.tts-picker-cancel').click();
-		expect(handlers.onDone).toHaveBeenLastCalledWith(false);
 	});
 
 	it('offers every language and marks the one in use', () => {
@@ -134,23 +116,6 @@ describe('voice picker view', () => {
 		expect(q<HTMLSelectElement>('.tts-picker-language').value).toBe('');
 	});
 
-	it('enables confirming only with a selected voice and no download running', () => {
-		const { view, q } = setup();
-		const confirm = q<HTMLButtonElement>('.tts-picker-confirm');
-		view.render(state());
-		expect(confirm.disabled).toBe(true);
-		view.render(state({ voices: [voice({ installed: true })], selected: 'pt_BR-faber-medium' }));
-		expect(confirm.disabled).toBe(false);
-		view.render(
-			state({
-				voices: [voice({ installed: true })],
-				selected: 'pt_BR-faber-medium',
-				downloading: { id: 'x', loaded: 0, total: 1 },
-			}),
-		);
-		expect(confirm.disabled).toBe(true);
-	});
-
 	it('explains notices, errors and the lack of internet', () => {
 		const { view, q } = setup();
 		const message = q('.tts-picker-message');
@@ -162,15 +127,11 @@ describe('voice picker view', () => {
 		expect(message.textContent).toBe(`${t.errorPrefix}disk full`);
 		view.render(state({ online: false, voices: [voice({ installed: true })] }));
 		expect(message.textContent).toBe(t.piperOffline);
-		expect(q<HTMLButtonElement>('.tts-picker-confirm').hidden).toBe(false);
 	});
 
-	it('without internet or voices, only going back to another engine is possible', () => {
+	it('without internet or voices, it explains that Piper cannot be used now', () => {
 		const { view, q } = setup();
-		view.show(true);
-		view.render(state({ online: false, voices: [] }));
+		view.render(state({ online: false, voices: [], notice: 'choose-voice' }));
 		expect(q('.tts-picker-message').textContent).toBe(t.piperNoChoices);
-		expect(q<HTMLButtonElement>('.tts-picker-confirm').hidden).toBe(true);
-		expect(q<HTMLButtonElement>('.tts-picker-cancel').hidden).toBe(false);
 	});
 });

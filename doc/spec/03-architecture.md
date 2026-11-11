@@ -45,16 +45,16 @@ domain  <-  application  <-  adapters  <-  webview  <-  Joplin entry points
 | `src/domain/settings.ts`                                                                   | Keys, defaults and normalization of settings                                                                                                                        | domain                        |
 | `src/application/player.ts`                                                                | `PlayerController`: idle/playing/paused state machine (use case)                                                                                                    | domain                        |
 | `src/application/messages.ts`, `ids.ts`                                                    | Plugin ↔ panel message protocol and content-script ids                                                                                                              | domain                        |
-| `src/application/piperDialog.ts`, `piperStore.ts`                                          | Logic of the Piper voice screen (list, download, remove, select) and the `PiperStore` port                                                                          | domain                        |
+| `src/application/piperDialog.ts`, `piperStore.ts`                                          | Logic of the Piper voice dialog (list, download, remove, select) and the `PiperStore` port                                                                          | domain                        |
 | `src/adapters/*Engine.ts`, `audioSlot.ts`                                                  | `TtsEngine` implementations: Web Speech, Google Translate, Azure, Google Cloud, Piper                                                                               | domain, application           |
 | `src/adapters/piperStorage.ts`, `piperSynth.ts`                                            | Piper files on disk and downloads (`PiperStore`), and the synthesizer (eSpeak + ONNX); Node side, injected `fs`/`fetch`                                             | domain, application           |
 | `src/domain/piperCatalog.ts`, `piperRuntime.ts`, `wav.ts`                                  | Voice catalog parsing, pinned runtime files (SHA-256), WAV encoding                                                                                                 | domain                        |
 | `src/webview/player.ts`, `playerView.ts`, `i18n.ts`                                        | Panel wiring and engine selection (`player.ts`), DOM view (`playerView.ts`), en / pt-BR strings; runs in the browser                                                | domain, application, adapters |
 | `src/webview/viewerSelection.ts`                                                           | Reports the selection made in the rendered viewer                                                                                                                   | application                   |
-| `src/webview/voicePickerView.ts`                                                           | DOM of the Piper voice screen                                                                                                                                       | domain, application           |
+| `src/webview/voicePickerView.ts`                                                           | DOM of the Piper voice dialog (content); `voiceDialog.ts` runs it inside the Joplin dialog                                                                          | domain, application           |
 | `src/webview/engines.ts`                                                                   | Engine registry: one factory per engine (`ENGINE_FACTORIES`) and the `EngineEnv` they receive                                                                       | domain, application, adapters |
 | `src/compose/` (`nodePlatform.ts`, `pluginRoot.ts`)                                        | **Composition root of the plugin process**: the only place that reads the Joplin API and Node globals (`fs`, `fetch`, `require`) to build services                  | everything                    |
-| `src/plugin.ts`, `piper.ts`, `piperGate.ts`, `piperPicker.ts`, `index.ts`, content scripts | Joplin integration (panel, commands, settings), Piper service (explicit dependencies), the rules that keep Piper from being used without a voice, voice-screen flow | everything                    |
+| `src/plugin.ts`, `piper.ts`, `piperGate.ts`, `piperPicker.ts`, `index.ts`, content scripts | Joplin integration (panel, commands, settings), Piper service (explicit dependencies), the rules that keep Piper from being used without a voice, voice-dialog flow | everything                    |
 
 Every platform dependency (`speechSynthesis`, `fetch`, `Audio`) is **injected**, which allows testing everything in Jest without Joplin or a real browser.
 
@@ -83,14 +83,13 @@ An engine speaks **one sentence at a time**. `speak` resolves when the sentence 
 
 Plugin → panel:
 
-| `type`             | Fields                           | When                                                        |
-| ------------------ | -------------------------------- | ----------------------------------------------------------- |
-| `init`             | `settings`                       | Panel sent `ready`                                          |
-| `settings`         | `settings`                       | User changed settings                                       |
-| `load`             | `title`, `sentences`, `autoplay` | "Read note" command (autoplay) or note switch (no autoplay) |
-| `stop`             | —                                | "Stop" command                                              |
-| `openVoicePicker`  | `revertible`                     | Piper chosen without a voice, or the Piper voices command   |
-| `closeVoicePicker` | —                                | The engine was changed elsewhere                            |
+| `type`     | Fields                           | When                                                        |
+| ---------- | -------------------------------- | ----------------------------------------------------------- |
+| `init`     | `settings`                       | Panel sent `ready`                                          |
+| `settings` | `settings`                       | User changed settings                                       |
+| `load`     | `title`, `sentences`, `autoplay` | "Read note" command (autoplay) or note switch (no autoplay) |
+| `stop`     | —                                | "Stop" command                                              |
+| `voices`   | —                                | The downloaded Piper voices changed: list them again        |
 
 Panel → plugin:
 
@@ -102,9 +101,7 @@ Panel → plugin:
 | `progress`        | `index`           | Sentence being read or paused on (`null` when idle): drives the highlight |
 | `piperVoices`     | —                 | Answer: the downloaded voices (`{ voices }`)                              |
 | `piperSynthesize` | `text`, `voiceId` | Answer: `{ ok: true, wav }` (base64 WAV) or `{ ok: false, error }`        |
-| `piperPicker`     | `request`         | Voice screen: list / download / remove / select; answer: a `DialogState`  |
-| `piperPickerDone` | `confirm`         | Voice screen closed: confirm the voice or go back to another engine       |
-| `close`           | —                 | Hides the panel (and gives up the voice screen if it is open)             |
+| `close`           | —                 | Hides the panel                                                           |
 
 The `ready` handshake exists because messages sent before the webview loads are lost. The "read note" command keeps a _pending autoplay_ until `ready` arrives. Switching notes with the panel open reloads **without autoplay**, so audio never starts unexpectedly.
 
@@ -124,8 +121,8 @@ Piper runs in the **plugin process** (Node), not in the panel: the plugin keeps 
 - **Folder** (`<plugin data dir>/piper`): `runtime/` (eSpeak phonemizer and ONNX Runtime, WebAssembly, pinned versions, SHA-256 checked, written atomically) and `voices/<id>/` (`model.onnx`, `model.onnx.json`, `meta.json` written last, so a half download is never listed).
 - **Synthesis** (`PiperSynthesizer`): eSpeak turns the text into phoneme ids (`piper_phonemize`), the voice (ONNX Runtime, `wasm` provider) produces PCM, which becomes a WAV. Requests are queued: one ONNX session cannot run two inferences at once.
 - **Catalog**: `voices.json` of `rhasspy/piper-voices`, read from the **Piper voices URL** setting. It gives each voice's id, locale, quality and file sizes (the MB shown).
-- **Voice screen**: Joplin's dialog API has no plugin-side `onMessage`, so a dialog cannot talk to the plugin; the screen is drawn **inside the player panel** instead (`voicePickerView.ts`, state in `PiperDialogController`, flow in `VoicePickerFlow`). Download progress has no push channel, so the screen asks for the state every 500 ms while it is open.
-- **Gate**: when the engine setting becomes `piper` and the saved voice is not downloaded, the plugin opens the screen (`revertible`). Confirming saves the voice (and the engine); giving up, or closing the panel, restores the previous non-Piper engine. Reading with Piper and no downloaded voice opens the screen instead of reading.
+- **Voice dialog**: a Joplin dialog (`voiceDialog.ts` inside it, content by `voicePickerView.ts`, state in `PiperDialogController`, flow in `VoicePickerFlow`). Its two buttons are the dialog's own (`confirm`, `giveup`); the page talks to the plugin with `webviewApi.postMessage`, answered by `joplin.views.panels.onMessage` registered on the dialog handle. The dialog asks for the state every 500 ms for the download progress. Its CSS is `voiceDialog.css`.
+- **Gate**: when the engine setting becomes `piper` and the saved voice is not downloaded, the plugin opens the dialog (`revertible`). Confirming saves the voice (and the engine); giving up, or closing the dialog, restores the previous non-Piper engine. Reading with Piper and no downloaded voice opens the dialog instead of reading.
 
 ## Reading the note
 
@@ -146,3 +143,5 @@ There is no container: services receive what they need through their constructor
 - **Plugin process:** `compose/pluginRoot.ts` (`composePiper`) reads the Joplin data folder and `compose/nodePlatform.ts` (`fs`, `fetch`, `require`); `createPiper` then receives all its dependencies explicitly and touches no global.
 - **Panel:** `initPlayer` builds one `EngineEnv` (browser features, strings, `request`) and `webview/engines.ts` maps each engine id to a factory; adding an engine means registering a factory.
 - **Rules:** `piperGate.ts` holds the Piper-without-a-voice rules, out of `plugin.ts`; the ESLint layer rules also forbid every inner layer from importing `compose`.
+
+The voice dialog sends one message to the plugin, `piperPicker` (`request`: list / download / remove / select), answered with a `DialogState`.

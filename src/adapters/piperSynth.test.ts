@@ -1,6 +1,9 @@
+import * as fs from 'fs';
+import * as os from 'os';
 import * as nodePath from 'path';
-import { PiperRuntime, PiperSynthesizer } from './piperSynth';
+import { OrtLike, PiperRuntime, PiperSynthesizer } from './piperSynth';
 import { PiperVoiceConfig } from '../domain/piperVoiceConfig';
+import { PIPER_RUNTIME_FILES } from '../domain/piperRuntime';
 
 class FakeTensor {
 	constructor(
@@ -160,5 +163,77 @@ describe('PiperSynthesizer', () => {
 		await expect(second).rejects.toThrow('boom');
 		await expect(synth.synthesize('v', 'three')).resolves.toEqual(expect.any(String));
 		expect(order).toEqual(['first start', 'first end', 'second']);
+	});
+});
+
+/**
+ * Regression: in Joplin, Piper failed with "Cannot read properties of undefined
+ * (reading 'wasm')". onnxruntime-web ships `dist/ort.wasm.min.js` as a browser IIFE,
+ * `"use strict";var ort=(()=>{...;return Je(to);})();`, which never touches
+ * `module.exports`: `require()` returns `{}` (the `var` is local to the module
+ * wrapper, so not even `globalThis.ort` is set). `dist/cjs/ort.wasm.min.js` is the
+ * same bundle ending in `module.exports=Je(to);`. The stand-ins below keep those
+ * real wrappers (and the esbuild namespace: getters plus `__esModule`/`default`).
+ */
+describe('PiperSynthesizer with the real shapes of the ONNX Runtime script', () => {
+	const NAMESPACE = `
+		var Tensor = class { constructor(type, data, dims) { this.type = type; this.data = data; this.dims = dims; } };
+		var session = { run: async () => ({ output: { data: Float32Array.from([0]) } }) };
+		var G = { wasm: {} };
+		var to = {};
+		Object.defineProperty(to, '__esModule', { value: true });
+		for (const [k, get] of Object.entries({
+			env: () => G,
+			InferenceSession: () => ({ create: async () => session }),
+			Tensor: () => Tensor,
+			default: () => G,
+		})) Object.defineProperty(to, k, { get, enumerable: true });`;
+	const SHAPES = {
+		iife: `"use strict";var ort=(()=>{${NAMESPACE}\nreturn to;})();`,
+		cjs: `"use strict";${NAMESPACE}\nmodule.exports=to;`,
+	};
+	let dir: string;
+	beforeAll(() => {
+		dir = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'ort-shape-'));
+		for (const [name, source] of Object.entries(SHAPES)) {
+			fs.writeFileSync(nodePath.join(dir, `${name}.js`), source);
+		}
+	});
+	afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+	const synthWith = (shape: keyof typeof SHAPES) => {
+		const ort = require(nodePath.join(dir, `${shape}.js`)) as OrtLike;
+		const createPhonemizer = async (hooks: Hooks) => ({
+			callMain: () => hooks.print(JSON.stringify({ phoneme_ids: [1] })),
+		});
+		const runtime = { ort, createPhonemizer, runtimeDir: dir } as PiperRuntime;
+		const readVoice = async () => ({ model: Uint8Array.from([1]), config: CONFIG });
+		return {
+			ort,
+			synth: new PiperSynthesizer({ voices: { readVoice }, loadRuntime: async () => runtime }),
+		};
+	};
+
+	it('the browser (IIFE) build exports nothing to require(), so it is reported clearly', async () => {
+		const { ort, synth } = synthWith('iife');
+		expect(ort).toEqual({});
+		expect((globalThis as { ort?: unknown }).ort).toBeUndefined();
+		// Before the fix this was the TypeError seen in Joplin.
+		await expect(synth.synthesize('v', 'x')).rejects.toThrow(
+			'The ONNX Runtime script did not load (it exports no `env.wasm`)',
+		);
+	});
+
+	it('the CommonJS build exports ONNX Runtime and speaks', async () => {
+		const { ort, synth } = synthWith('cjs');
+		await expect(synth.synthesize('v', 'x')).resolves.toEqual(expect.any(String));
+		expect(ort.env.wasm).toEqual({ wasmPaths: dir + nodePath.sep, numThreads: 1 });
+	});
+
+	it('downloads the CommonJS build of ONNX Runtime', () => {
+		const script = PIPER_RUNTIME_FILES.find((f) => f.name === 'ort.wasm.min.js');
+		expect(script?.url).toBe(
+			'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/cjs/ort.wasm.min.js',
+		);
 	});
 });

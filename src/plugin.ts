@@ -14,7 +14,12 @@ import {
 	SETTINGS_SECTION,
 	settingKey,
 } from './domain/settings';
-import { PanelToPluginMessage, PluginToPanelMessage } from './application/messages';
+import {
+	DialogToPluginMessage,
+	PanelToPluginMessage,
+	PluginToPanelMessage,
+} from './application/messages';
+import { getStrings } from './webview/i18n';
 import { Settings } from './domain/types';
 import { composePiper } from './compose/pluginRoot';
 import { PiperGate } from './piperGate';
@@ -24,8 +29,10 @@ export const COMMAND_READ = 'tts.readNote';
 export const COMMAND_STOP = 'tts.stop';
 export const COMMAND_PIPER_VOICES = 'tts.piperVoices';
 export const PANEL_ID = 'tts.panel';
+export const VOICE_DIALOG_ID = 'tts.voiceDialog';
 
 export const PANEL_HTML = '<div id="tts-root"></div>';
+export const VOICE_DIALOG_HTML = '<div id="tts-voice-root"></div>';
 
 export async function registerSettings(): Promise<void> {
 	await joplin.settings.registerSection(SETTINGS_SECTION, {
@@ -168,17 +175,36 @@ export async function start(): Promise<void> {
 
 	const send = (message: PluginToPanelMessage) => joplin.views.panels.postMessage(panel, message);
 
-	// Offline Piper engine: voices live in a local folder; picking one happens in a screen
-	// over the player, which cannot be left without a voice (or another engine).
+	// Offline Piper engine: voices live in a local folder; they are downloaded and chosen in a
+	// dialog, which when Piper has no voice yet cannot be left without one (or another engine).
 	const initial = await readSettings();
 	const piper = await composePiper(readSettings);
+	const dialog = await joplin.views.dialogs.create(VOICE_DIALOG_ID);
+	await joplin.views.dialogs.setHtml(dialog, VOICE_DIALOG_HTML);
+	await joplin.views.dialogs.addScript(dialog, './webview/voiceDialog.css');
+	await joplin.views.dialogs.addScript(dialog, './webview/voiceDialog.js');
 	const picker = new VoicePickerFlow(piper.controller, {
 		settings: readSettings,
 		set: (key, value) => joplin.settings.setValue(settingKey(key), value),
-		showPanel: () => joplin.views.panels.show(panel, true),
-		send: async (message) => send(message),
+		async showDialog(revertible) {
+			const t = getStrings(String(await joplin.settings.globalValue('locale')));
+			await joplin.views.dialogs.setButtons(dialog, [
+				{ id: 'confirm', title: t.piperUse },
+				{ id: 'giveup', title: revertible ? t.piperUseOther : t.close },
+			]);
+			const result = await joplin.views.dialogs.open(dialog);
+			return result.id === 'confirm' ? 'confirm' : 'giveup';
+		},
 	});
-	const gate = new PiperGate(initial, piper, picker);
+	await joplin.views.panels.onMessage(dialog, (message: DialogToPluginMessage) =>
+		picker.request(message.request),
+	);
+	// The player lists the downloaded voices again after the dialog was used.
+	const openVoices = async (revertTo: Parameters<typeof picker.open>[0]) => {
+		await picker.open(revertTo);
+		if (panelReady) await send({ type: 'voices' });
+	};
+	const gate = new PiperGate(initial, piper, { open: openVoices });
 
 	const showHighlight = async (index: number | null) => {
 		const span = index === null ? null : (currentPlan?.highlights[index] ?? null);
@@ -209,7 +235,6 @@ export async function start(): Promise<void> {
 			case 'ready':
 				panelReady = true;
 				await send({ type: 'init', settings: await readSettings() });
-				await picker.resend();
 				if (pendingAutoplay !== null) {
 					const autoplay = pendingAutoplay;
 					pendingAutoplay = null;
@@ -235,12 +260,7 @@ export async function start(): Promise<void> {
 				return piper.voices();
 			case 'piperSynthesize':
 				return piper.synthesize(message.text, message.voiceId);
-			case 'piperPicker':
-				return picker.request(message.request);
-			case 'piperPickerDone':
-				return picker.done(message.confirm);
 			case 'close':
-				await picker.panelClosed();
 				await joplin.views.panels.show(panel, false);
 				break;
 		}

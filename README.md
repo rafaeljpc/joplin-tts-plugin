@@ -21,7 +21,7 @@ Reads the open note aloud, **sentence by sentence**, with a player panel: voice 
   - **Google Translate** — online, free, no key, one voice per language. It uses an unofficial public endpoint, so it may change or stop working.
   - **Microsoft Azure Speech** — neural voices, official API; bring your own key (the free tier covers 500,000 characters per month).
   - **Google Cloud Text-to-Speech** — official API; bring your own key.
-  - **Piper** — neural voices that run **offline** on your computer. You download the voices you want (about 60 MB each) in a screen inside the player; see [Piper voices](#piper-voices).
+  - **Piper** — neural voices that run **offline** on your computer. You download the voices you want (about 60 MB each) in a dialog; see [Piper voices](#piper-voices).
 - Markdown is converted to speakable text (code blocks, links, images and HTML are skipped).
 - English and Brazilian Portuguese UI.
 
@@ -41,7 +41,7 @@ Reads the open note aloud, **sentence by sentence**, with a player panel: voice 
 
 Piper is the offline neural engine. Nothing is bundled and no voice is downloaded by default:
 
-1. Choose **Piper** as the speech engine in the settings. The player opens a **voice screen** that lists the voices of the catalog (filtered by your language code), with the size of each one. It cannot be left until you download and select a voice, or go back to another engine (closing the panel counts as going back).
+1. Choose **Piper** as the speech engine in the settings. A **voice dialog** opens and lists the voices of the catalog (filtered by your language code), with the size of each one. It cannot be left until you download and select a voice, or go back to another engine (closing the dialog counts as going back).
 2. **Download** a voice and select it. The first download also fetches about 30 MB of runtime files (eSpeak and ONNX Runtime, WebAssembly) shared by all voices. Everything is stored in the plugin's data folder.
 3. Reopen the screen any time with **Tools → Joplin Text-to-Speech: Piper voices** to download or remove voices.
 
@@ -54,7 +54,7 @@ The voice catalog (`rhasspy/piper-voices` on Hugging Face) is the advanced setti
 ### Step by step: first voice
 
 1. **Tools → Options → Joplin Text-to-Speech**: set **Language code** (for example `pt-BR`) so the list opens already filtered, then set **Speech engine** to **Piper**.
-2. The voice screen opens over the player. Pick a voice (quality: `low` is the smallest and fastest, `medium` is the usual choice, `high` is the biggest) and press **Download**. The first one also downloads the shared runtime; wait for the percentage to reach 100%.
+2. The voice dialog opens. Pick a voice (quality: `low` is the smallest and fastest, `medium` is the usual choice, `high` is the biggest) and press **Download**. The first one also downloads the shared runtime; wait for the percentage to reach 100%.
 3. Select the voice and press **Use this voice**. Press play on a note: the first sentence takes a moment, the next ones are prepared while the current one plays.
 4. To add or remove voices later: **Tools → Joplin Text-to-Speech: Piper voices**.
 

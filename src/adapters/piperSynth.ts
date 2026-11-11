@@ -92,6 +92,10 @@ export class PiperSynthesizer {
 		this.runtime ??= this.deps
 			.loadRuntime()
 			.then((runtime) => {
+				// `require()` of a browser build returns `{}`; say so instead of a TypeError.
+				if (!runtime.ort.env?.wasm) {
+					throw new Error('The ONNX Runtime script did not load (it exports no `env.wasm`)');
+				}
 				runtime.ort.env.wasm.wasmPaths = runtime.runtimeDir + nodePath.sep;
 				runtime.ort.env.wasm.numThreads = 1;
 				return runtime;
