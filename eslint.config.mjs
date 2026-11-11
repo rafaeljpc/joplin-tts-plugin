@@ -35,6 +35,8 @@ export default tseslint.config(
 			'dist/**',
 			'publish/**',
 			'coverage/**',
+			'.cache/**',
+			'test/integration/**',
 			'webpack.config.js',
 			'jest.config.js',
 			'.github/scripts/**',

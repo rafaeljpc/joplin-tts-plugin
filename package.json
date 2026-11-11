@@ -14,6 +14,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "coverage": "jest --coverage",
+    "test:integration": "tsc -p tsconfig.integration.json && node --test test/integration/piper.integration.cjs",
     "badges": "node .github/scripts/coverage-badges.cjs --badges .github/badges",
     "validate": "npm run lint && npm run format:check && npm run typecheck && npm run coverage && npm run badges"
   },

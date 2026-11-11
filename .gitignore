@@ -5,3 +5,4 @@ coverage/
 *.jpl
 *.tgz
 .DS_Store
+.cache/
