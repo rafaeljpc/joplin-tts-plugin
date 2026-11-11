@@ -1,5 +1,5 @@
 import { DialogState } from '../application/piperDialog';
-import { DIALOG_POLL_MS, DialogApiLike, initVoiceDialog } from './voiceDialog';
+import { DIALOG_POLL_MS, DialogApiLike, initVoiceDialog, sizeDialog } from './voiceDialog';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -43,6 +43,20 @@ function setup(language = 'en') {
 	const q = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 	return { posted, timers, q };
 }
+
+describe('sizeDialog', () => {
+	it('makes the box Joplin measures half the screen wide and high', () => {
+		document.body.innerHTML = '<div id="joplin-plugin-content"></div>';
+		sizeDialog(document, { availWidth: 1921, availHeight: 1040 });
+		const box = document.getElementById('joplin-plugin-content') as HTMLElement;
+		expect([box.style.width, box.style.height]).toEqual(['961px', '520px']);
+	});
+
+	it('does nothing when Joplin has not created the box', () => {
+		document.body.innerHTML = '';
+		expect(() => sizeDialog(document, { availWidth: 100, availHeight: 100 })).not.toThrow();
+	});
+});
 
 describe('voice dialog', () => {
 	it('lists the voices as soon as it opens', async () => {

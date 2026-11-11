@@ -11,6 +11,18 @@ export interface DialogApiLike {
 }
 
 /**
+ * Joplin fits the dialog to the box it measures, #joplin-plugin-content, and vw/vh would
+ * refer to the (tiny) frame itself, so the size comes from the screen: half of its width
+ * and height, a quarter of its area. The CSS has a fixed size as a fallback.
+ */
+export function sizeDialog(doc: Document, screen: { availWidth: number; availHeight: number }) {
+	const box = doc.getElementById('joplin-plugin-content');
+	if (!box) return;
+	box.style.width = `${Math.round(screen.availWidth / 2)}px`;
+	box.style.height = `${Math.round(screen.availHeight / 2)}px`;
+}
+
+/**
  * Runs inside the Joplin dialog: draws the voice list and relays what the user
  * does to the plugin. Leaving the dialog (its buttons) is handled by the plugin.
  */
@@ -36,7 +48,10 @@ export function initVoiceDialog(
 /** Auto-start inside the Joplin dialog webview. */
 declare const webviewApi: DialogApiLike | undefined;
 if (typeof webviewApi !== 'undefined' && typeof document !== 'undefined') {
-	const start = () => initVoiceDialog(document, webviewApi, navigator.language);
+	const start = () => {
+		sizeDialog(document, screen);
+		initVoiceDialog(document, webviewApi, navigator.language);
+	};
 	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
 	else start();
 }
