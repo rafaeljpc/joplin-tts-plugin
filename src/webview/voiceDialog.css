@@ -3,9 +3,9 @@
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	min-width: 420px;
-	max-width: 640px;
-	max-height: 70vh;
+	/* Fixed size: the dialog frame starts tiny, so vh/auto sizes would collapse. */
+	width: 520px;
+	height: 420px;
 	overflow-y: auto;
 	color: var(--joplin-color);
 	font-family: var(--joplin-font-family);
