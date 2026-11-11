@@ -51,6 +51,34 @@ The voice catalog (`rhasspy/piper-voices` on Hugging Face) is the advanced setti
 
 > **Licenses:** the Piper voices are MIT-licensed, but the individual voice datasets have their own licenses (see the model card of each voice). The eSpeak NG phonemizer that Piper needs is GPL-3.0; it is **downloaded at runtime, not bundled** in this plugin.
 
+### Step by step: first voice
+
+1. **Tools → Options → Joplin Text-to-Speech**: set **Language code** (for example `pt-BR`) so the list opens already filtered, then set **Speech engine** to **Piper**.
+2. The voice screen opens over the player. Pick a voice (quality: `low` is the smallest and fastest, `medium` is the usual choice, `high` is the biggest) and press **Download**. The first one also downloads the shared runtime; wait for the percentage to reach 100%.
+3. Select the voice and press **Use this voice**. Press play on a note: the first sentence takes a moment, the next ones are prepared while the current one plays.
+4. To add or remove voices later: **Tools → Joplin Text-to-Speech: Piper voices**.
+
+### Troubleshooting
+
+| Symptom                                        | What to do                                                                                                                    |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| The list is empty or says there is no internet | Check the connection and the **Piper voices URL** setting (reset it to the default if you changed it), then reopen the screen |
+| A download fails or stops                      | Press **Download** again; partial files are discarded and never listed                                                        |
+| An error appears in the player when reading    | Pick another voice, or switch to another engine; please report it with the text of the error in the issues                    |
+| Piper is slow on a long note                   | Use a `low` quality voice, or a faster speed in the player; synthesis runs on your computer                                   |
+| You want the disk space back                   | Remove the voices in the screen; the runtime (about 30 MB) stays until you uninstall the plugin                               |
+
+## Credits
+
+This plugin stands on open-source work:
+
+- [Piper](https://github.com/rhasspy/piper) and its [voices](https://huggingface.co/rhasspy/piper-voices) (Rhasspy / Open Home Foundation, MIT; each voice dataset has its own license in its model card).
+- [eSpeak NG](https://github.com/espeak-ng/espeak-ng) (GPL-3.0), the phonemizer, in the WebAssembly build of [`@diffusionstudio/piper-wasm`](https://github.com/diffusionstudio/piper-wasm); downloaded at runtime, not bundled.
+- [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (MIT), the model runtime.
+- [Joplin](https://github.com/laurent22/joplin) and its plugin API.
+
+Source code and issues: <https://github.com/rafaeljpc/joplin-tts-plugin>.
+
 ## Development
 
 ```bash
