@@ -11,6 +11,7 @@ All notable changes to this project are documented here. Format based on
 - **Piper**, an offline neural speech engine. Voices are downloaded by the user (none by default, with the size of each shown) from a catalog whose URL is the new advanced setting _Piper voices URL_, and stored in the plugin's data folder. Choosing the engine opens a voice dialog that cannot be left without a downloaded voice (or going back to another engine); **Tools → Joplin Text-to-Speech: Piper voices** reopens it. The internet is needed only for the downloads.
 
 ### Fixed
+
 - Piper: the ONNX Runtime script is now evaluated by a small loader (it cannot read files in the plugin process), and phonemes are numbered with the voice's own `phoneme_id_map`; both were found by the new integration test, which downloads a pt-BR voice and speaks.
 
 - Piper no longer fails with "Cannot read properties of undefined (reading 'wasm')": the ONNX Runtime script it downloads is now the CommonJS build, and a runtime that does not load is reported with a clear message.
