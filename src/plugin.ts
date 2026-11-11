@@ -180,6 +180,9 @@ export async function start(): Promise<void> {
 	const initial = await readSettings();
 	const piper = await composePiper(readSettings);
 	const dialog = await joplin.views.dialogs.create(VOICE_DIALOG_ID);
+	// Fitted to its content the dialog is a narrow strip (its width is not up to the page);
+	// unfitted it takes most of the window, which leaves room for the list.
+	await joplin.views.dialogs.setFitToContent(dialog, false);
 	await joplin.views.dialogs.setHtml(dialog, VOICE_DIALOG_HTML);
 	await joplin.views.dialogs.addScript(dialog, './webview/voiceDialog.css');
 	await joplin.views.dialogs.addScript(dialog, './webview/voiceDialog.js');
