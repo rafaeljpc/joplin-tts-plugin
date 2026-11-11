@@ -1,4 +1,10 @@
 /* Piper voice dialog */
+
+/* Joplin sizes the dialog to this box, which it creates itself: about a quarter of a full HD screen. */
+#joplin-plugin-content {
+	width: 880px;
+	height: 480px;
+}
 .tts-picker {
 	display: flex;
 	flex-direction: column;
