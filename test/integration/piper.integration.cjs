@@ -3,7 +3,9 @@
  * runtime and the smallest pt-BR voice from the catalog, then synthesizes a
  * sentence and checks the audio. It needs the internet (about 100 MB the first
  * time; files are kept in .cache/piper-integration) and runs the downloaded
- * WebAssembly code, so it is not part of `npm run validate`:
+ * WebAssembly code, so it is not part of `npm run validate`. It also transcribes
+ * the audio with Whisper (tiny, about 75 MB, kept in .cache/whisper) and checks
+ * that the words match the text, so the speech is verified, not only the file:
  *
  *   npm run test:integration
  */
@@ -29,7 +31,50 @@ function readWav(base64) {
 	const samples = new Int16Array(data.buffer, data.byteOffset, data.length / 2);
 	let peak = 0;
 	for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
-	return { sampleRate, seconds: samples.length / sampleRate, peak };
+	return { sampleRate, seconds: samples.length / sampleRate, peak, samples };
+}
+
+/** Mono float samples at 16 kHz (what Whisper takes), by linear interpolation. */
+function toWhisperInput({ samples, sampleRate }) {
+	const ratio = sampleRate / 16000;
+	const out = new Float32Array(Math.floor(samples.length / ratio));
+	for (let i = 0; i < out.length; i++) {
+		const pos = i * ratio;
+		const a = Math.floor(pos);
+		const b = Math.min(a + 1, samples.length - 1);
+		out[i] = (samples[a] + (samples[b] - samples[a]) * (pos - a)) / 32768;
+	}
+	return out;
+}
+
+const words = (text) =>
+	text
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/[̀-ͯ]/g, '')
+		.split(/[^a-z0-9]+/)
+		.filter(Boolean);
+
+/** Share of the expected words that were heard (order ignored; ASR is not exact). */
+function wordsHeard(expected, heard) {
+	const pool = words(heard);
+	let found = 0;
+	for (const word of words(expected)) {
+		const i = pool.indexOf(word);
+		if (i >= 0) {
+			found++;
+			pool.splice(i, 1);
+		}
+	}
+	return found / words(expected).length;
+}
+
+async function transcribe(wav) {
+	const { pipeline, env } = await import('@huggingface/transformers');
+	env.cacheDir = path.join(__dirname, '..', '..', '.cache', 'whisper');
+	const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
+	const result = await asr(toWhisperInput(wav), { language: 'portuguese', task: 'transcribe' });
+	return result.text;
 }
 
 test('downloads a pt-BR voice and speaks with it', { timeout: 15 * 60 * 1000 }, async (t) => {
@@ -63,6 +108,15 @@ test('downloads a pt-BR voice and speaks with it', { timeout: 15 * 60 * 1000 }, 
 		assert.ok(wav.sampleRate >= 16000, `sample rate ${wav.sampleRate}`);
 		assert.ok(wav.seconds > 1.5 && wav.seconds < 15, `duration ${wav.seconds}s`);
 		assert.ok(wav.peak > 1000, `the audio is not silent (peak ${wav.peak})`);
+	});
+
+	await t.test('what is heard is what was written (Whisper transcription)', async () => {
+		const text = 'Olá, tudo bem? Este é um teste de voz.';
+		const reply = await piper.synthesize(text, voice.id);
+		const heard = await transcribe(readWav(reply.wav));
+		const score = wordsHeard(text, heard);
+		t.diagnostic(`heard: "${heard.trim()}" (${Math.round(score * 100)}% of the words)`);
+		assert.ok(score >= 0.5, `expected "${text}", heard "${heard.trim()}"`);
 	});
 
 	await t.test('a longer text gives longer audio, and a second request works', async () => {

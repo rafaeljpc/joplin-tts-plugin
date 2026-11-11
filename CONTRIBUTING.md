@@ -52,4 +52,4 @@ Behavior and architecture decisions live in `doc/spec`. Update them in the same 
 
 ## Piper integration test
 
-`npm run test:integration` downloads the Piper runtime and the smallest pt-BR voice (about 100 MB the first time, kept in `.cache/`), synthesizes sentences with them and checks that the audio is a real, audible WAV. It needs the internet and runs the downloaded WebAssembly code, so it is **not** part of `npm run validate` or CI; run it before releasing a change to the Piper engine.
+`npm run test:integration` downloads the Piper runtime and the smallest pt-BR voice (about 100 MB the first time, kept in `.cache/`), synthesizes sentences with them and checks that the audio is a real, audible WAV. It also transcribes the audio with Whisper tiny (about 75 MB, also in `.cache/`) and requires at least half of the words to be heard, so the speech itself is verified. It needs the internet and runs the downloaded WebAssembly code, so it is **not** part of `npm run validate` or CI; run it before releasing a change to the Piper engine.
