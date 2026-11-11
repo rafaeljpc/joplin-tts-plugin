@@ -2,11 +2,12 @@
 const fn = () => jest.fn();
 
 const joplin = {
-	plugins: { register: fn() },
+	plugins: { register: fn(), dataDir: fn() },
 	settings: {
 		registerSection: fn(),
 		registerSettings: fn(),
 		value: fn(),
+		globalValue: fn(),
 		setValue: fn(),
 		onChange: fn(),
 	},
@@ -19,6 +20,14 @@ const joplin = {
 			visible: fn(),
 			onMessage: fn(),
 			postMessage: fn(),
+		},
+		dialogs: {
+			create: fn(),
+			setFitToContent: fn(),
+			setHtml: fn(),
+			addScript: fn(),
+			setButtons: fn(),
+			open: fn(),
 		},
 		toolbarButtons: { create: fn() },
 		menuItems: { create: fn() },

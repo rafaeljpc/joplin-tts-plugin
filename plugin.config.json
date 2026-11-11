@@ -1,6 +1,7 @@
 {
   "extraScripts": [
     "webview/player.ts",
+    "webview/voiceDialog.ts",
     "webview/viewerSelection.ts",
     "editorContentScript.ts",
     "viewerContentScript.ts"

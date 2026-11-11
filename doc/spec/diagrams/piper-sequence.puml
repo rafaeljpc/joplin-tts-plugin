@@ -1,0 +1,57 @@
+@startuml piper-sequence
+title Piper: choosing the engine, downloading a voice and reading
+actor User
+participant "Player panel\n(player.ts, PiperEngine)" as panel
+participant "plugin.ts\n+ VoicePickerFlow" as plugin
+participant "PiperDialogController" as dialog
+participant "PiperStorage" as storage
+participant "PiperSynthesizer" as synth
+participant "Hugging Face / CDN" as net
+database "<dataDir>/piper" as disk
+
+== Choose the engine (gate) ==
+User -> plugin : setting engine = piper
+plugin -> storage : installed()
+storage --> plugin : [] (no voice)
+plugin -> panel : openVoicePicker(revertible)
+panel -> plugin : piperPicker(state)
+plugin -> dialog : handle(state)
+dialog -> storage : fetchCatalog()
+storage -> net : voices.json
+net --> storage : catalog
+dialog --> panel : voices + MB, language filter
+
+== Download a voice ==
+User -> panel : Download
+panel -> plugin : piperPicker(download id)
+plugin -> dialog : handle(download)
+dialog -> storage : download(voice, onProgress)
+storage -> net : runtime files (first time, SHA-256 checked)
+storage -> net : model.onnx, model.onnx.json
+storage -> disk : .part, rename, meta.json last
+loop every 500 ms while open
+  panel -> plugin : piperPicker(state)
+  plugin --> panel : progress %
+end
+
+alt User selects a voice
+  User -> panel : Use this voice
+  panel -> plugin : piperPickerDone(confirm = true)
+  plugin -> plugin : save voice
+else User gives up (or closes the panel)
+  panel -> plugin : piperPickerDone(confirm = false)
+  plugin -> plugin : restore last non-Piper engine
+end
+
+== Read a note ==
+User -> panel : Play
+loop each sentence (next one prefetched)
+  panel -> plugin : piperSynthesize(text, voiceId)
+  plugin -> synth : synthesize(voiceId, text)
+  synth -> disk : read model (cached after first use)
+  synth -> synth : eSpeak phonemes -> ONNX -> PCM -> WAV
+  synth --> plugin : base64 WAV
+  plugin --> panel : { ok: true, wav }
+  panel -> panel : play data:audio/wav
+end
+@enduml

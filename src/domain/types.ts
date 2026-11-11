@@ -1,4 +1,4 @@
-export type EngineId = 'webspeech' | 'google-translate' | 'google-cloud' | 'azure';
+export type EngineId = 'webspeech' | 'google-translate' | 'google-cloud' | 'azure' | 'piper';
 
 export interface Voice {
 	/** Stable identifier (voiceURI for Web Speech, voice name for Google). */
@@ -37,4 +37,6 @@ export interface Settings {
 	/** Language code (e.g. pt-BR) used by the online engines. */
 	language: string;
 	readTitle: boolean;
+	/** Where the Piper voices are downloaded from (see piperCatalog.ts). */
+	piperCatalogUrl: string;
 }

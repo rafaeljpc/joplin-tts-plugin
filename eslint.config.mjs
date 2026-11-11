@@ -35,6 +35,8 @@ export default tseslint.config(
 			'dist/**',
 			'publish/**',
 			'coverage/**',
+			'.cache/**',
+			'test/integration/**',
 			'webpack.config.js',
 			'jest.config.js',
 			'.github/scripts/**',
@@ -51,10 +53,10 @@ export default tseslint.config(
 	},
 	// Dependency rule: domain <- application <- adapters <- webview <- (Joplin entry points).
 	// A layer may only import from the layers on its left.
-	...layerRule('src/domain/**', ['application', 'adapters', 'webview', 'plugin']),
-	...layerRule('src/application/**', ['adapters', 'webview', 'plugin']),
-	...layerRule('src/adapters/**', ['webview', 'plugin']),
-	...layerRule('src/webview/**', ['plugin']),
+	...layerRule('src/domain/**', ['application', 'adapters', 'webview', 'compose', 'plugin']),
+	...layerRule('src/application/**', ['adapters', 'webview', 'compose', 'plugin']),
+	...layerRule('src/adapters/**', ['webview', 'compose', 'plugin']),
+	...layerRule('src/webview/**', ['compose', 'plugin']),
 	{
 		files: ['**/*.test.ts'],
 		rules: { '@typescript-eslint/no-require-imports': 'off' },

@@ -1,11 +1,15 @@
 import joplin from 'api';
 import { SettingItemType } from 'api/types';
 import { PanelToPluginMessage } from './application/messages';
+import { PiperStorage } from './adapters/piperStorage';
 import {
+	COMMAND_PIPER_VOICES,
 	COMMAND_READ,
 	COMMAND_STOP,
 	PANEL_HTML,
 	PANEL_ID,
+	VOICE_DIALOG_HTML,
+	VOICE_DIALOG_ID,
 	readSettings,
 	registerSettings,
 	start,
@@ -15,6 +19,7 @@ const j = joplin as unknown as {
 	settings: Record<string, jest.Mock>;
 	views: {
 		panels: Record<string, jest.Mock>;
+		dialogs: Record<string, jest.Mock>;
 		toolbarButtons: Record<string, jest.Mock>;
 		menuItems: Record<string, jest.Mock>;
 	};
@@ -32,6 +37,10 @@ beforeEach(() => {
 	j.settings.value.mockImplementation(async (key: string) => stored[key]);
 	j.views.panels.create.mockResolvedValue('panel-handle');
 	j.views.panels.visible.mockResolvedValue(true);
+	j.views.dialogs.create.mockResolvedValue('dialog-handle');
+	j.views.dialogs.open.mockResolvedValue({ id: 'giveup' });
+	j.settings.globalValue.mockResolvedValue('en');
+	j.plugins.dataDir.mockResolvedValue('/joplin-test-data');
 	j.workspace.selectedNote.mockResolvedValue({
 		id: 'n1',
 		title: 'My note',
@@ -40,7 +49,9 @@ beforeEach(() => {
 });
 
 const messageHandler = () =>
-	j.views.panels.onMessage.mock.calls[0][1] as (m: PanelToPluginMessage) => Promise<void>;
+	j.views.panels.onMessage.mock.calls.find(([handle]) => handle === 'panel-handle')[1] as (
+		m: PanelToPluginMessage,
+	) => Promise<unknown>;
 const command = (name: string) =>
 	j.commands.register.mock.calls.map((c) => c[0]).find((c) => c.name === name);
 const sent = () => j.views.panels.postMessage.mock.calls.map((c) => c[1]);
@@ -59,6 +70,7 @@ describe('registerSettings / readSettings', () => {
 			'tts.azureRegion',
 			'tts.language',
 			'tts.readTitle',
+			'tts.piperCatalogUrl',
 		]);
 		expect(settings['tts.googleApiKey'].secure).toBe(true);
 		expect(settings['tts.azureApiKey'].secure).toBe(true);
@@ -338,5 +350,160 @@ describe('start', () => {
 		expect(sent()).toEqual([]);
 		await onSelection();
 		expect(sent()[0]).toMatchObject({ type: 'load', autoplay: false });
+	});
+});
+
+describe('Piper voices', () => {
+	const onChange = () => j.settings.onChange.mock.calls[0][0] as () => Promise<void>;
+	const setValueCalls = () => j.settings.setValue.mock.calls;
+
+	it('offers the engine, a command and a Tools menu item', async () => {
+		await registerSettings();
+		const engine = j.settings.registerSettings.mock.calls[0][0]['tts.engine'];
+		expect(engine.options.piper).toMatch('Piper');
+		await start();
+		expect(command(COMMAND_PIPER_VOICES)).toBeDefined();
+		expect(j.views.menuItems.create).toHaveBeenCalledWith(
+			COMMAND_PIPER_VOICES,
+			COMMAND_PIPER_VOICES,
+			'tools',
+		);
+	});
+
+	it('answers the player about voices and speech while none is downloaded', async () => {
+		await start();
+		await expect(messageHandler()({ type: 'piperVoices' })).resolves.toEqual({ voices: [] });
+		await expect(
+			messageHandler()({ type: 'piperSynthesize', text: 'Hi', voiceId: '' }),
+		).resolves.toMatchObject({ ok: false, error: expect.stringContaining('No Piper voice') });
+	});
+
+	const dialogOpens = (...ids: string[]) => {
+		for (const id of ids) j.views.dialogs.open.mockResolvedValueOnce({ id });
+	};
+	const dialogHandler = () => {
+		const call = j.views.panels.onMessage.mock.calls.find(([handle]) => handle === 'dialog-handle');
+		return call[1] as (message: unknown) => Promise<unknown>;
+	};
+
+	it('sets the voice dialog up with its page and scripts', async () => {
+		await start();
+		expect(j.views.dialogs.create).toHaveBeenCalledWith(VOICE_DIALOG_ID);
+		expect(j.views.dialogs.setHtml).toHaveBeenCalledWith('dialog-handle', VOICE_DIALOG_HTML);
+		expect(j.views.dialogs.addScript.mock.calls.map(([, path]) => path)).toEqual([
+			'./webview/voiceDialog.css',
+			'./webview/voiceDialog.js',
+		]);
+		const state = await dialogHandler()({ type: 'piperPicker', request: { type: 'state' } });
+		expect(state).toMatchObject({ voices: [], online: false });
+	});
+
+	it('choosing Piper without a voice opens the dialog, and giving up goes back', async () => {
+		stored['tts.engine'] = 'azure';
+		await start();
+		dialogOpens('giveup');
+		stored['tts.engine'] = 'piper';
+		await onChange()();
+		expect(j.views.dialogs.open).toHaveBeenCalledWith('dialog-handle');
+		expect(j.views.dialogs.setButtons).toHaveBeenLastCalledWith('dialog-handle', [
+			{ id: 'confirm', title: 'Use this voice' },
+			{ id: 'giveup', title: 'Use another engine' },
+		]);
+		expect(setValueCalls()).toContainEqual(['tts.engine', 'azure']);
+	});
+
+	it('asks again when the dialog is confirmed without a voice, and closing it counts as giving up', async () => {
+		stored['tts.engine'] = 'azure';
+		await start();
+		dialogOpens('confirm', 'cancel');
+		stored['tts.engine'] = 'piper';
+		await onChange()();
+		expect(j.views.dialogs.open).toHaveBeenCalledTimes(2);
+		expect(setValueCalls()).toContainEqual(['tts.engine', 'azure']);
+	});
+
+	it('labels the dialog in the interface language', async () => {
+		j.settings.globalValue.mockResolvedValue('pt_BR');
+		stored['tts.engine'] = 'azure';
+		await start();
+		dialogOpens('giveup');
+		stored['tts.engine'] = 'piper';
+		await onChange()();
+		expect(j.views.dialogs.setButtons).toHaveBeenLastCalledWith('dialog-handle', [
+			{ id: 'confirm', title: 'Usar esta voz' },
+			{ id: 'giveup', title: 'Usar outro motor' },
+		]);
+	});
+
+	it('goes back to webspeech when Piper was already the engine at startup', async () => {
+		stored['tts.engine'] = 'piper';
+		await start();
+		dialogOpens('giveup');
+		await command(COMMAND_READ).execute();
+		expect(setValueCalls()).toContainEqual(['tts.engine', 'webspeech']);
+	});
+
+	it('reading with Piper and no voice opens the dialog instead of reading', async () => {
+		stored['tts.engine'] = 'piper';
+		await start();
+		await messageHandler()({ type: 'ready' });
+		j.views.panels.postMessage.mockClear();
+		dialogOpens('giveup');
+		await command(COMMAND_READ).execute();
+		expect(j.views.dialogs.open).toHaveBeenCalled();
+		expect(sent().map((m) => m.type)).toEqual(['voices']);
+	});
+
+	it('the Piper voices command opens the dialog, without forcing another engine unless Piper has no voice', async () => {
+		stored['tts.engine'] = 'azure';
+		await start();
+		dialogOpens('giveup');
+		await command(COMMAND_PIPER_VOICES).execute();
+		expect(j.views.dialogs.setButtons).toHaveBeenLastCalledWith('dialog-handle', [
+			{ id: 'confirm', title: 'Use this voice' },
+			{ id: 'giveup', title: 'Close' },
+		]);
+		expect(setValueCalls()).not.toContainEqual(['tts.engine', expect.anything()]);
+
+		stored['tts.engine'] = 'piper';
+		dialogOpens('giveup', 'giveup');
+		await onChange()();
+		await command(COMMAND_PIPER_VOICES).execute();
+		expect(j.views.dialogs.setButtons).toHaveBeenLastCalledWith('dialog-handle', [
+			{ id: 'confirm', title: 'Use this voice' },
+			{ id: 'giveup', title: 'Use another engine' },
+		]);
+	});
+
+	it('tells a ready player to list the voices again after the dialog', async () => {
+		stored['tts.engine'] = 'azure';
+		await start();
+		dialogOpens('giveup');
+		await command(COMMAND_PIPER_VOICES).execute();
+		expect(sent().map((m) => m.type)).not.toContain('voices'); // panel not ready yet
+		await messageHandler()({ type: 'ready' });
+		j.views.panels.postMessage.mockClear();
+		dialogOpens('giveup');
+		await command(COMMAND_PIPER_VOICES).execute();
+		expect(sent()).toContainEqual({ type: 'voices' });
+	});
+
+	it('does not open the screen when the saved voice is downloaded', async () => {
+		const installed = jest.spyOn(PiperStorage.prototype, 'installed').mockResolvedValue([
+			{
+				id: 'pt_BR-faber-medium',
+				name: 'faber',
+				language: 'pt_BR',
+				quality: 'medium',
+				sizeBytes: 1,
+			},
+		]);
+		stored['tts.engine'] = 'azure';
+		stored['tts.voice'] = 'pt_BR-faber-medium';
+		await start();
+		stored['tts.engine'] = 'piper';
+		await onChange()();
+		expect(j.views.dialogs.open).not.toHaveBeenCalled();
+		installed.mockRestore();
 	});
 });
