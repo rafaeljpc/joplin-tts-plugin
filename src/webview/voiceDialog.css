@@ -6,7 +6,8 @@
 	/* Fixed size: the dialog frame starts tiny, so vh/auto sizes would collapse. */
 	width: 100%;
 	box-sizing: border-box;
-	height: 420px;
+	height: 380px;
+	padding-right: 4px;
 	overflow-y: auto;
 	color: var(--joplin-color);
 	font-family: var(--joplin-font-family);
@@ -35,46 +36,44 @@
 	min-height: 6em;
 }
 
-.tts-picker-row {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	padding: 6px 4px;
-	border-bottom: 1px solid var(--joplin-divider-color);
+.tts-picker-about summary {
+	cursor: pointer;
+	font-size: 0.85em;
+	opacity: 0.8;
 }
 
-.tts-picker-head {
-	display: flex;
+.tts-picker-about .tts-picker-intro {
+	margin-top: 4px;
+}
+
+.tts-picker-row {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
 	align-items: center;
-	gap: 8px;
+	gap: 4px 8px;
+	padding: 8px 4px;
+	border-bottom: 1px solid var(--joplin-divider-color, #ddd);
+}
+
+.tts-picker-info {
+	min-width: 0;
 }
 
 .tts-picker-name {
-	flex: 1;
-	min-width: 0;
 	overflow-wrap: anywhere;
 }
 
-.tts-picker-detail {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px;
-	padding-left: 24px;
+.tts-picker-meta {
+	font-size: 0.8em;
+	opacity: 0.7;
 }
 
-.tts-picker-size,
-.tts-picker-status {
-	font-size: 0.85em;
-	opacity: 0.8;
-	white-space: nowrap;
-}
-
-.tts-picker-detail button {
-	margin-left: auto;
+.tts-picker-row button {
+	min-width: 72px;
 }
 
 .tts-picker-progress {
 	width: 100%;
-	height: 10px;
+	height: 8px;
+	margin-top: 4px;
 }

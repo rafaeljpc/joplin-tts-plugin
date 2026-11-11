@@ -45,7 +45,10 @@ export function createVoicePicker(
 	const list = el(doc, 'div', { className: 'tts-picker-list' });
 	const screen = el(doc, 'div', { className: 'tts-picker' }, [
 		el(doc, 'div', { className: 'tts-picker-title', textContent: t.piperTitle }),
-		el(doc, 'div', { className: 'tts-picker-intro', textContent: t.piperIntro }),
+		el(doc, 'details', { className: 'tts-picker-about' }, [
+			el(doc, 'summary', { textContent: t.piperAbout }),
+			el(doc, 'div', { className: 'tts-picker-intro', textContent: t.piperIntro }),
+		]),
 		languageSelect,
 		message,
 		list,
@@ -89,25 +92,23 @@ export function createVoicePicker(
 			handlers.onRequest({ type: voice.installed ? 'remove' : 'download', id: voice.id });
 		const label = `${voice.name} (${locale(voice.language)}${voice.quality ? `, ${voice.quality}` : ''})`;
 		const downloading = state.downloading?.id === voice.id ? state.downloading : null;
+		const meta = [size, status(voice, state)].filter((part) => part !== '').join(' · ');
 		return el(doc, 'div', { className: 'tts-picker-row' }, [
-			el(doc, 'label', { className: 'tts-picker-head' }, [
-				radio,
-				el(doc, 'span', { className: 'tts-picker-name', textContent: label }),
+			radio,
+			el(doc, 'div', { className: 'tts-picker-info' }, [
+				el(doc, 'div', { className: 'tts-picker-name', textContent: label }),
+				el(doc, 'div', { className: 'tts-picker-meta', textContent: meta }),
+				...(downloading
+					? [
+							el(doc, 'progress', {
+								className: 'tts-picker-progress',
+								max: 100,
+								value: percentOf(downloading),
+							}),
+						]
+					: []),
 			]),
-			el(doc, 'div', { className: 'tts-picker-detail' }, [
-				el(doc, 'span', { className: 'tts-picker-size', textContent: size }),
-				el(doc, 'span', { className: 'tts-picker-status', textContent: status(voice, state) }),
-				action,
-			]),
-			...(downloading
-				? [
-						el(doc, 'progress', {
-							className: 'tts-picker-progress',
-							max: 100,
-							value: percentOf(downloading),
-						}),
-					]
-				: []),
+			action,
 		]);
 	};
 
@@ -118,25 +119,36 @@ export function createVoicePicker(
 		return state.online ? '' : t.piperOffline;
 	};
 
+	// The dialog polls for progress; only rebuild what changed, so an open dropdown stays open.
+	let languagesKey = '';
+	let listKey = '';
 	return {
 		render(state) {
-			languageSelect.replaceChildren(
-				el(doc, 'option', {
-					value: '',
-					textContent: t.piperAllLanguages,
-					selected: state.language === '',
-				}),
-				...state.languages.map((code) =>
+			const nextLanguagesKey = JSON.stringify([state.languages, state.language]);
+			if (nextLanguagesKey !== languagesKey) {
+				languagesKey = nextLanguagesKey;
+				languageSelect.replaceChildren(
 					el(doc, 'option', {
-						value: code,
-						textContent: locale(code),
-						selected: code === state.language,
+						value: '',
+						textContent: t.piperAllLanguages,
+						selected: state.language === '',
 					}),
-				),
-			);
+					...state.languages.map((code) =>
+						el(doc, 'option', {
+							value: code,
+							textContent: locale(code),
+							selected: code === state.language,
+						}),
+					),
+				);
+			}
 			message.textContent = text(state);
 			message.hidden = message.textContent === '';
-			list.replaceChildren(...state.voices.map((voice) => row(voice, state)));
+			const nextListKey = JSON.stringify([state.voices, state.selected, state.downloading]);
+			if (nextListKey !== listKey) {
+				listKey = nextListKey;
+				list.replaceChildren(...state.voices.map((voice) => row(voice, state)));
+			}
 		},
 	};
 }

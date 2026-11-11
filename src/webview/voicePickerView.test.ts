@@ -41,8 +41,7 @@ describe('voice picker view', () => {
 		const { view, q, all } = setup();
 		view.render(state());
 		expect(q('.tts-picker-name').textContent).toBe('faber (pt-BR, medium)');
-		expect(q('.tts-picker-size').textContent).toBe('60.3 MB');
-		expect(q('.tts-picker-status').textContent).toBe('');
+		expect(q('.tts-picker-meta').textContent).toBe('60.3 MB');
 		expect(q('.tts-picker-download').textContent).toBe(t.piperDownload);
 		expect(all('.tts-picker-remove')).toHaveLength(0);
 		expect(q<HTMLInputElement>('input[type=radio]').disabled).toBe(true);
@@ -54,7 +53,7 @@ describe('voice picker view', () => {
 			state({ voices: [voice({ installed: true, quality: '' })], selected: 'pt_BR-faber-medium' }),
 		);
 		expect(q('.tts-picker-name').textContent).toBe('faber (pt-BR)');
-		expect(q('.tts-picker-status').textContent).toBe(t.piperDownloaded);
+		expect(q('.tts-picker-meta').textContent).toBe('60.3 MB · ' + t.piperDownloaded);
 		expect(q('.tts-picker-remove').textContent).toBe(t.piperRemove);
 		const radio = q<HTMLInputElement>('input[type=radio]');
 		expect(radio.disabled).toBe(false);
@@ -64,16 +63,26 @@ describe('voice picker view', () => {
 	it('shows the download progress and blocks other downloads meanwhile', () => {
 		const { view, q } = setup();
 		view.render(state({ downloading: { id: 'pt_BR-faber-medium', loaded: 25, total: 100 } }));
-		expect(q('.tts-picker-status').textContent).toBe('Downloading… 25%');
+		expect(q('.tts-picker-meta').textContent).toBe('60.3 MB · Downloading… 25%');
 		expect(q<HTMLProgressElement>('.tts-picker-progress').value).toBe(25);
 		expect(q<HTMLButtonElement>('.tts-picker-download').disabled).toBe(true);
 		view.render(state({ downloading: { id: 'other', loaded: 1, total: 0 } }));
 		expect(document.querySelector('.tts-picker-progress')).toBeNull();
-		expect(q('.tts-picker-status').textContent).toBe('');
+		expect(q('.tts-picker-meta').textContent).toBe('60.3 MB');
 		view.render(state({ downloading: { id: 'pt_BR-faber-medium', loaded: 1, total: 0 } }));
-		expect(q('.tts-picker-status').textContent).toBe('Downloading… 0%');
+		expect(q('.tts-picker-meta').textContent).toBe('60.3 MB · Downloading… 0%');
 		view.render(state({ downloading: { id: 'pt_BR-faber-medium', loaded: 500, total: 100 } }));
-		expect(q('.tts-picker-status').textContent).toBe('Downloading… 100%');
+		expect(q('.tts-picker-meta').textContent).toBe('60.3 MB · Downloading… 100%');
+	});
+
+	it('does not rebuild the language list or the voices when nothing changed', () => {
+		const { view, q } = setup();
+		view.render(state());
+		const select = q('.tts-picker-language').firstElementChild;
+		const row = q('.tts-picker-row');
+		view.render(state());
+		expect(q('.tts-picker-language').firstElementChild).toBe(select);
+		expect(q('.tts-picker-row')).toBe(row);
 	});
 
 	it('reports what the user does', () => {

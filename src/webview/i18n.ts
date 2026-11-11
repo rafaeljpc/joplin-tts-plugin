@@ -17,6 +17,7 @@ const en = {
 	missingAzureKey: 'Set an Azure Speech key and region in Settings > Joplin Text-to-Speech.',
 	unsupported: 'Speech synthesis is not available on this device. Try an online engine.',
 	piperTitle: 'Piper voices',
+	piperAbout: 'About these voices',
 	piperIntro:
 		'Piper speaks offline with voices you download. Download one and select it to use it. The first download also fetches about 30 MB of files shared by all voices. Voices from the Piper project (huggingface.co/rhasspy/piper-voices, MIT); each voice has the license of its dataset, in its model card.',
 	piperLanguage: 'Language',
@@ -56,6 +57,7 @@ const ptBR: Strings = {
 		'Defina a chave e a região do Azure Speech em Configurações > Joplin Text-to-Speech.',
 	unsupported: 'A síntese de voz não está disponível neste dispositivo. Tente um motor online.',
 	piperTitle: 'Vozes do Piper',
+	piperAbout: 'Sobre as vozes',
 	piperIntro:
 		'O Piper fala offline com vozes que você baixa. Baixe uma e selecione-a para usar. O primeiro download também baixa cerca de 30 MB de arquivos compartilhados por todas as vozes. Vozes do projeto Piper (huggingface.co/rhasspy/piper-voices, MIT); cada voz tem a licença do seu conjunto de dados, no model card dela.',
 	piperLanguage: 'Idioma',
