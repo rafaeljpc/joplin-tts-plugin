@@ -14,6 +14,7 @@ All notable changes to this project are documented here. Format based on
 ### Fixed
 
 - The plugin no longer stops loading when a view the platform lacks fails (editor and viewer scripts, toolbar buttons, Tools menu, Piper setup): each is optional and logs a warning instead.
+- System voices on Android: speech that is accepted but never starts now fails after 5 seconds with a clear message instead of hanging silently, an empty system voice list explains that the WebView has no speech engine, and both suggest the online Google Translate engine (the text is then sent to Google). The utterance is also kept referenced and a paused synthesizer is resumed before speaking.
 
 ### Added
 

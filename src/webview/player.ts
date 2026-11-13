@@ -61,6 +61,11 @@ function createSettingsManager(controller: PlayerController, view: PlayerView, e
 		} catch (error) {
 			view.showError(error instanceof Error ? error.message : String(error));
 		}
+		// An empty list is not fatal (the default voice may still work) but is the usual
+		// sign of an Android WebView without a speech engine: say so and name the way out.
+		if (voiceIds && voices.length === 0 && settings.engine === 'webspeech') {
+			view.showError(env.t.webspeechNoVoices);
+		}
 		view.setVoices(voices, settings.voice);
 	};
 
