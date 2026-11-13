@@ -19,7 +19,7 @@ export interface PlayerView {
 	setRates(rates: number[], selected: number): void;
 	setVoices(voices: Voice[], selectedId: string): void;
 	/** Switches between the desktop layout and the touch (bottom player) layout. */
-	setMobile(mobile: boolean): void;
+	setMobile(mobile: boolean, dialog: boolean): void;
 }
 
 /** Speeds offered as chips in the touch layout (the others stay in the select). */
@@ -109,8 +109,9 @@ export function createView(
 			prevBtn.disabled = stopBtn.disabled = nextBtn.disabled = state.total === 0;
 		},
 
-		setMobile(mobile) {
+		setMobile(mobile, dialog) {
 			root.classList.toggle('tts-mobile', mobile);
+			root.classList.toggle('tts-dialog', mobile && dialog);
 		},
 
 		setRates(rates, selected) {

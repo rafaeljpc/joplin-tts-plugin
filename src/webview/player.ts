@@ -111,6 +111,8 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	const env: EngineEnv = { scope, t, request };
 	const controller = new PlayerController(buildEngine({ ...DEFAULT_SETTINGS }, env));
 	let title = '';
+	// Experimental mobile dialog: the tap on Play must start the audio in this webview.
+	let inDialog = false;
 
 	const save = (patch: Partial<Settings>) => void api.postMessage({ type: 'saveSettings', patch });
 
@@ -123,7 +125,7 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 			view.showError(null);
 			// Starting from idle asks the plugin for a fresh plan, so reading begins at
 			// the editor cursor or the current selection. Resume/pause act locally.
-			if (controller.getState().status === 'idle')
+			if (controller.getState().status === 'idle' && !inDialog)
 				void api.postMessage({ type: 'reload', autoplay: true });
 			else controller.toggle();
 		},
@@ -146,7 +148,8 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	const handleMessage = (message: PluginToPanelMessage) => {
 		switch (message.type) {
 			case 'init':
-				view.setMobile(message.mobile === true);
+				inDialog = message.dialog === true;
+				view.setMobile(message.mobile === true, inDialog);
 				void settingsManager.apply(message.settings, true);
 				break;
 			case 'settings':

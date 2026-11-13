@@ -7,6 +7,8 @@ export type PluginToPanelMessage =
 			type: 'init';
 			settings: Settings;
 			/** Joplin mobile: the panel uses the touch layout. */ mobile?: boolean;
+			/** Experimental mobile dialog: compact layout, Play starts reading in this webview. */
+			dialog?: boolean;
 	  }
 	| { type: 'settings'; settings: Settings }
 	| {

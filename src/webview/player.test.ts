@@ -529,4 +529,22 @@ describe('mobile layout', () => {
 		await send({ type: 'load', title: 'N', sentences: ['a', 'b'], startIndex: 0, autoplay: false });
 		expect(q('.tts-card .tts-counter').textContent).toBe('Sentence 1 of 2');
 	});
+
+	it('uses the compact dialog layout only when told it is in the dialog', async () => {
+		const { send, q } = setup();
+		await send({ type: 'init', settings: settings(), mobile: true });
+		expect(q('#tts-root').classList.contains('tts-dialog')).toBe(false);
+		await send({ type: 'init', settings: settings(), mobile: true, dialog: true });
+		expect(q('#tts-root').classList.contains('tts-dialog')).toBe(true);
+	});
+
+	it('starts reading from the tap on Play inside the dialog, without asking the plugin', async () => {
+		const { send, q, posted, player } = setup();
+		await send({ type: 'init', settings: settings(), mobile: true, dialog: true });
+		await send({ type: 'load', title: 'N', sentences: ['a', 'b'], startIndex: 0, autoplay: false });
+		posted.length = 0;
+		q<HTMLButtonElement>('.tts-play').click();
+		expect(player.getController().getState().status).toBe('playing');
+		expect(posted).not.toContainEqual({ type: 'reload', autoplay: true });
+	});
 });

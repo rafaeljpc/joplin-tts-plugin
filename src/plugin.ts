@@ -32,6 +32,9 @@ export const COMMAND_STOP = 'tts.stop';
 export const COMMAND_PIPER_VOICES = 'tts.piperVoices';
 export const PANEL_ID = 'tts.panel';
 export const VOICE_DIALOG_ID = 'tts.voiceDialog';
+export const PLAYER_DIALOG_ID = 'tts.playerDialog';
+/** Experimental: on mobile, show the player in a fit-to-content dialog instead of the panel. */
+export const MOBILE_DIALOG_KEY = 'tts.mobileDialog';
 
 /** True on Joplin mobile (no Node, no desktop-only views); desktop when it cannot be told. */
 export async function isMobile(): Promise<boolean> {
@@ -153,6 +156,20 @@ export async function registerSettings(mobile = false): Promise<void> {
 			},
 		});
 	}
+	if (mobile) {
+		Object.assign(settings, {
+			[MOBILE_DIALOG_KEY]: {
+				section: SETTINGS_SECTION,
+				public: true,
+				advanced: true,
+				type: SettingItemType.Bool,
+				value: true,
+				label: 'Experimental: player in a dialog',
+				description:
+					'Mobile only. Shows the player in a compact dialog instead of the full-screen panel of Joplin. Turn it off to go back to the panel. Takes effect after restarting Joplin.',
+			},
+		});
+	}
 	await joplin.settings.registerSettings(settings);
 }
 
@@ -173,12 +190,24 @@ export async function start(): Promise<void> {
 	const read = () => readSettings(mobile);
 	await registerSettings(mobile);
 
-	const panel = await joplin.views.panels.create(PANEL_ID);
-	await joplin.views.panels.setHtml(panel, PANEL_HTML);
-	await joplin.views.panels.addScript(panel, './webview/player.css');
-	await joplin.views.panels.addScript(panel, './webview/player.js');
-	await joplin.views.panels.show(panel, false);
+	// Experimental: mobile shows the player in a dialog that is only as tall as the player.
+	const asDialog = mobile && (await joplin.settings.value(MOBILE_DIALOG_KEY)) !== false;
+	const views = asDialog ? joplin.views.dialogs : joplin.views.panels;
+	const panel = asDialog
+		? await joplin.views.dialogs.create(PLAYER_DIALOG_ID)
+		: await joplin.views.panels.create(PANEL_ID);
+	await views.setHtml(panel, PANEL_HTML);
+	await views.addScript(panel, './webview/player.css');
+	await views.addScript(panel, './webview/player.js');
+	if (asDialog) {
+		await joplin.views.dialogs.setFitToContent(panel, true);
+		// No button row: the dialog closes with a tap outside it or the back button.
+		await joplin.views.dialogs.setButtons(panel, []);
+	} else {
+		await joplin.views.panels.show(panel, false);
+	}
 
+	let dialogOpen = false;
 	let panelReady = false;
 	let pendingAutoplay: boolean | null = null;
 	// Last cursor / selection reported by the editor or the viewer (latest wins).
@@ -289,7 +318,7 @@ export async function start(): Promise<void> {
 		switch (message.type) {
 			case 'ready':
 				panelReady = true;
-				await send({ type: 'init', settings: await read(), mobile });
+				await send({ type: 'init', settings: await read(), mobile, dialog: asDialog });
 				if (pendingAutoplay !== null) {
 					const autoplay = pendingAutoplay;
 					pendingAutoplay = null;
@@ -318,7 +347,7 @@ export async function start(): Promise<void> {
 					? piper.synthesize(message.text, message.voiceId)
 					: { ok: false, error: PIPER_UNAVAILABLE };
 			case 'close':
-				await joplin.views.panels.show(panel, false);
+				if (!asDialog) await joplin.views.panels.show(panel, false);
 				break;
 		}
 		return undefined;
@@ -330,6 +359,19 @@ export async function start(): Promise<void> {
 		iconName: 'fas fa-volume-up',
 		execute: async () => {
 			if (gate && (await gate.blocksReading(await read()))) return;
+			if (asDialog) {
+				// The reading starts from a tap on Play inside the dialog, which owns the audio element.
+				panelReady = false;
+				pendingAutoplay = false;
+				dialogOpen = true;
+				const closed = async () => {
+					dialogOpen = false;
+					panelReady = false;
+					await showHighlight(null);
+				};
+				void joplin.views.dialogs.open(panel).then(closed, closed);
+				return;
+			}
 			await joplin.views.panels.show(panel, true);
 			if (panelReady) await loadSelectedNote(true);
 			else pendingAutoplay = true;
@@ -342,7 +384,7 @@ export async function start(): Promise<void> {
 		iconName: 'fas fa-stop',
 		execute: async () => {
 			await send({ type: 'stop' });
-			await joplin.views.panels.show(panel, false);
+			if (!asDialog) await joplin.views.panels.show(panel, false);
 		},
 	});
 
@@ -399,7 +441,8 @@ export async function start(): Promise<void> {
 		// A cursor or selection belongs to the previous note.
 		interaction = null;
 		await showHighlight(null);
-		if (!panelReady || !(await joplin.views.panels.visible(panel))) return;
+		const shown = asDialog ? dialogOpen : await joplin.views.panels.visible(panel);
+		if (!panelReady || !shown) return;
 		await loadSelectedNote(false);
 	});
 }

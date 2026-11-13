@@ -231,3 +231,18 @@
 	color: var(--joplin-color);
 	font-size: 0.95em;
 }
+
+/*
+ * Experimental mobile dialog: Joplin fits the dialog to this box, so it must not fill the
+ * screen. No header (the dialog closes with a tap outside it or the back button).
+ */
+#tts-root.tts-mobile.tts-dialog {
+	min-height: 0;
+	min-width: 85vw;
+	justify-content: flex-start;
+	padding: 0 4px 4px;
+}
+
+.tts-dialog .tts-header {
+	display: none;
+}
