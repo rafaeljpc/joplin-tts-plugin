@@ -311,6 +311,17 @@ describe('initPlayer', () => {
 		expect(q('.tts-error').textContent).toContain(t.unsupported);
 	});
 
+	it('explains an empty system voice list and suggests the online engine', async () => {
+		jest.useFakeTimers();
+		const empty = { ...makeScope().synth, getVoices: jest.fn(() => []) };
+		const { send, q } = setup({ speechSynthesis: empty as unknown as SpeechSynthesis });
+		const sending = send({ type: 'init', settings: settings() });
+		await jest.advanceTimersByTimeAsync(2000);
+		await sending;
+		jest.useRealTimers();
+		expect(q('.tts-error').textContent).toContain(t.webspeechNoVoices);
+	});
+
 	it('reports voice listing failures', async () => {
 		const failing = {
 			cancel: () => undefined,

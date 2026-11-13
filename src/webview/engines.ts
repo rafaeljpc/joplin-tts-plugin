@@ -48,7 +48,9 @@ export const ENGINE_FACTORIES: Record<EngineId, EngineFactory> = {
 		if (!scope.speechSynthesis || !scope.SpeechSynthesisUtterance) {
 			return new UnavailableEngine(t.unsupported);
 		}
-		return new WebSpeechEngine(scope.speechSynthesis, scope.SpeechSynthesisUtterance);
+		return new WebSpeechEngine(scope.speechSynthesis, scope.SpeechSynthesisUtterance, {
+			noStart: t.webspeechNoStart,
+		});
 	},
 	'google-translate': (settings, env) =>
 		new GoogleTranslateEngine({ languageCode: settings.language, createAudio: audioOf(env) }),
