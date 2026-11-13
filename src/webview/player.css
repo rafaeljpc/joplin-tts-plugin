@@ -233,7 +233,7 @@
 }
 
 /*
- * Experimental mobile dialog: Joplin fits the dialog to this box, so it must not fill the
+ * Mobile dialog: Joplin fits the dialog to this box, so it must not fill the
  * screen. No header (the dialog closes with a tap outside it or the back button).
  */
 #tts-root.tts-mobile.tts-dialog {

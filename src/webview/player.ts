@@ -111,7 +111,7 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	const env: EngineEnv = { scope, t, request };
 	const controller = new PlayerController(buildEngine({ ...DEFAULT_SETTINGS }, env));
 	let title = '';
-	// Experimental mobile dialog: the tap on Play must start the audio in this webview.
+	// Mobile dialog: the tap on Play must start the audio in this webview.
 	let inDialog = false;
 
 	const save = (patch: Partial<Settings>) => void api.postMessage({ type: 'saveSettings', patch });

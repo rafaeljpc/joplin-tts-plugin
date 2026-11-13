@@ -33,7 +33,7 @@ export const COMMAND_PIPER_VOICES = 'tts.piperVoices';
 export const PANEL_ID = 'tts.panel';
 export const VOICE_DIALOG_ID = 'tts.voiceDialog';
 export const PLAYER_DIALOG_ID = 'tts.playerDialog';
-/** Experimental: on mobile, show the player in a fit-to-content dialog instead of the panel. */
+/** On mobile, show the player in a fit-to-content dialog instead of the panel. */
 export const MOBILE_DIALOG_KEY = 'tts.mobileDialog';
 
 /** True on Joplin mobile (no Node, no desktop-only views); desktop when it cannot be told. */
@@ -164,7 +164,7 @@ export async function registerSettings(mobile = false): Promise<void> {
 				advanced: true,
 				type: SettingItemType.Bool,
 				value: true,
-				label: 'Experimental: player in a dialog',
+				label: 'Player in a dialog',
 				description:
 					'Mobile only. Shows the player in a compact dialog instead of the full-screen panel of Joplin. Turn it off to go back to the panel. Takes effect after restarting Joplin.',
 			},
@@ -190,7 +190,7 @@ export async function start(): Promise<void> {
 	const read = () => readSettings(mobile);
 	await registerSettings(mobile);
 
-	// Experimental: mobile shows the player in a dialog that is only as tall as the player.
+	// Mobile shows the player in a dialog that is only as tall as the player.
 	const asDialog = mobile && (await joplin.settings.value(MOBILE_DIALOG_KEY)) !== false;
 	const views = asDialog ? joplin.views.dialogs : joplin.views.panels;
 	const panel = asDialog

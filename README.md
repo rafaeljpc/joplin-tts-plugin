@@ -49,7 +49,7 @@ Android installs a plugin from a file (**Configuration → Plugins → Advanced 
 
 On Android the System voices engine depends on the WebView exposing a working `speechSynthesis`; many Android WebViews do not (no API, no voices, or speech that never starts). The player then says so and suggests the **Google Translate** engine. With any online engine the text is sent to that service; the plugin never switches to one by itself.
 
-**Experimental build:** on mobile the player opens in a compact dialog instead of the full-screen panel (it is modal, so the note is dimmed behind it; close it by tapping outside). The advanced setting _Experimental: player in a dialog_ turns it off.
+On mobile the player opens in a compact dialog instead of the full-screen panel (it is modal, so the note is dimmed behind it; close it by tapping outside). The advanced setting _Player in a dialog_ turns it off (Joplin gives plugins no way to dock a panel at the bottom of the screen).
 
 The manifest declares mobile support and the code avoids Node-only features there, but this is **untested on a device**. On mobile, Piper is not available: Joplin gives mobile plugins no file access (`fs`, `dataDir`), so the voices cannot be stored. It will be reconsidered if Joplin adds one. The Tools menu, keyboard shortcut, editor highlight and cursor tracking may be missing depending on what Joplin mobile provides; reading itself does not depend on them. The system voices need `speechSynthesis` in the mobile WebView; if it is missing, the player says so.
 
