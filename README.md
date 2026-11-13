@@ -55,7 +55,7 @@ The manifest declares mobile support and the code avoids Node-only features ther
 
 ## Settings
 
-**Tools → Options → Joplin Text-to-Speech**: speech engine, API keys (stored securely), Azure region, language code (e.g. `pt-BR`) for the online engines and the Piper voice list, read the title first, Piper voices URL (advanced). Voice and speed are chosen in the player panel.
+**Tools → Options → Joplin Text-to-Speech**: speech engine, API keys (stored securely), Azure region, language (a dropdown of codes such as `pt-BR`; a value typed in an older version is kept as a "Custom" option) for the online engines and the Piper voice list, read the title first, Piper voices URL (advanced). Voice and speed are chosen in the player panel.
 
 > With any online engine (Google Translate, Google Cloud, Azure) the text of the note is sent to that service. System voices never leave your device.
 
@@ -75,7 +75,7 @@ The voice catalog (`rhasspy/piper-voices` on Hugging Face) is the advanced setti
 
 ### Step by step: first voice
 
-1. **Tools → Options → Joplin Text-to-Speech**: set **Language code** (for example `pt-BR`) so the list opens already filtered, then set **Speech engine** to **Piper**.
+1. **Tools → Options → Joplin Text-to-Speech**: set **Language** (for example Portuguese (Brazil) — `pt-BR`) so the list opens already filtered, then set **Speech engine** to **Piper**.
 2. The voice dialog opens. Pick a voice (quality: `low` is the smallest and fastest, `medium` is the usual choice, `high` is the biggest) and press **Download**. The first one also downloads the shared runtime; wait for the percentage to reach 100%.
 3. Select the voice and press **Use this voice**. Press play on a note: the first sentence takes a moment, the next ones are prepared while the current one plays.
 4. To add or remove voices later: **Tools → Joplin Text-to-Speech: Piper voices**.

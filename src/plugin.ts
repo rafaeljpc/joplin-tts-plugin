@@ -21,6 +21,7 @@ import {
 	PluginToPanelMessage,
 } from './application/messages';
 import { getStrings } from './webview/i18n';
+import { languageOptions } from './domain/languages';
 import { Settings } from './domain/types';
 import type { composePiper as ComposePiper } from './compose/pluginRoot';
 import type { PiperService } from './piper';
@@ -66,6 +67,14 @@ export async function registerSettings(mobile = false): Promise<void> {
 		description:
 			'Voice, speed and the speech engine. Voice and speed can also be changed in the player panel. Open source and credits: github.com/rafaeljpc/joplin-tts-plugin (Piper, eSpeak NG, ONNX Runtime).',
 	});
+
+	// Keep a language typed by hand in an older version as an extra option.
+	let storedLanguage: unknown;
+	try {
+		storedLanguage = await joplin.settings.value(settingKey('language'));
+	} catch {
+		storedLanguage = undefined;
+	}
 
 	const settings: Record<string, SettingItem> = {
 		[settingKey('engine')]: {
@@ -130,9 +139,12 @@ export async function registerSettings(mobile = false): Promise<void> {
 			section: SETTINGS_SECTION,
 			public: true,
 			type: SettingItemType.String,
+			isEnum: true,
 			value: DEFAULT_SETTINGS.language,
-			label: 'Language code (online engines)',
-			description: 'For example en-US or pt-BR. Used to list voices and as the default language.',
+			label: 'Language',
+			description:
+				'Used to list voices, as the default language of the online engines (Google Translate, Google Cloud, Azure) and to filter the Piper voice list.',
+			options: languageOptions(storedLanguage),
 		},
 		[settingKey('readTitle')]: {
 			section: SETTINGS_SECTION,

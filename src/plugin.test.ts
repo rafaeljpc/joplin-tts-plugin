@@ -58,6 +58,28 @@ const command = (name: string) =>
 const sent = () => j.views.panels.postMessage.mock.calls.map((c) => c[1]);
 
 describe('registerSettings / readSettings', () => {
+	it('offers the language as a dropdown and keeps a custom stored value', async () => {
+		await registerSettings();
+		const plain = j.settings.registerSettings.mock.calls[0][0]['tts.language'];
+		expect(plain.isEnum).toBe(true);
+		expect(plain.options['pt-BR']).toContain('pt-BR');
+		expect(plain.options.pt).toBeUndefined();
+
+		j.settings.registerSettings.mockClear();
+		j.settings.value.mockResolvedValueOnce('pt');
+		await registerSettings();
+		expect(j.settings.registerSettings.mock.calls[0][0]['tts.language'].options.pt).toBe(
+			'Custom \u2014 pt',
+		);
+	});
+
+	it('still registers the language when reading the stored value fails', async () => {
+		j.settings.value.mockRejectedValueOnce(new Error('nope'));
+		await registerSettings();
+		const language = j.settings.registerSettings.mock.calls[0][0]['tts.language'];
+		expect(language.options['en-US']).toBeDefined();
+	});
+
 	it('registers a section and every setting', async () => {
 		await registerSettings();
 		expect(j.settings.registerSection).toHaveBeenCalledWith('ttsPlugin', expect.any(Object));

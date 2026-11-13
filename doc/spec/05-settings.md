@@ -2,16 +2,16 @@
 
 The **Joplin Text-to-Speech** section under _Tools → Options_. All keys use the `tts.` prefix so they do not clash with other plugins. Values read back go through `normalizeSettings`, which discards invalid values and falls back to the default.
 
-| Key                | Type   | Default     | Visible | Description                                                              |
-| ------------------ | ------ | ----------- | ------- | ------------------------------------------------------------------------ |
-| `tts.engine`       | enum   | `webspeech` | yes     | `webspeech`, `google-translate`, `azure` or `google-cloud`               |
-| `tts.voice`        | string | `""`        | no      | Voice chosen in the panel; empty = default voice                         |
-| `tts.rate`         | string | `"1"`       | no      | Speed (0.5–3). Stored as a string: Joplin has no _float_ setting type    |
-| `tts.googleApiKey` | string | `""`        | yes     | Google Cloud API key. **`secure: true`** (stored in the system keychain) |
-| `tts.azureApiKey`  | string | `""`        | yes     | Azure Speech key. **`secure: true`**                                     |
-| `tts.azureRegion`  | string | `eastus`    | yes     | Region of the Azure Speech resource (e.g. `brazilsouth`)                 |
-| `tts.language`     | string | `en-US`     | yes     | Language code (e.g. `pt-BR`) for the online engines                      |
-| `tts.readTitle`    | bool   | `true`      | yes     | Reads the note title before the body                                     |
+| Key                | Type   | Default     | Visible | Description                                                                                                                                               |
+| ------------------ | ------ | ----------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tts.engine`       | enum   | `webspeech` | yes     | `webspeech`, `google-translate`, `azure` or `google-cloud`                                                                                                |
+| `tts.voice`        | string | `""`        | no      | Voice chosen in the panel; empty = default voice                                                                                                          |
+| `tts.rate`         | string | `"1"`       | no      | Speed (0.5–3). Stored as a string: Joplin has no _float_ setting type                                                                                     |
+| `tts.googleApiKey` | string | `""`        | yes     | Google Cloud API key. **`secure: true`** (stored in the system keychain)                                                                                  |
+| `tts.azureApiKey`  | string | `""`        | yes     | Azure Speech key. **`secure: true`**                                                                                                                      |
+| `tts.azureRegion`  | string | `eastus`    | yes     | Region of the Azure Speech resource (e.g. `brazilsouth`)                                                                                                  |
+| `tts.language`     | enum   | `en-US`     | yes     | Language dropdown (e.g. `pt-BR`): lists voices, default of the online engines, Piper filter. A stored value outside the list is kept as a "Custom" option |
+| `tts.readTitle`    | bool   | `true`      | yes     | Reads the note title before the body                                                                                                                      |
 
 ## Commands
 
