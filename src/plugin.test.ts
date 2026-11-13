@@ -10,6 +10,7 @@ import {
 	PANEL_ID,
 	VOICE_DIALOG_HTML,
 	VOICE_DIALOG_ID,
+	isMobile,
 	readSettings,
 	registerSettings,
 	start,
@@ -505,5 +506,87 @@ describe('Piper voices', () => {
 		await onChange()();
 		expect(j.views.dialogs.open).not.toHaveBeenCalled();
 		installed.mockRestore();
+	});
+});
+
+describe('Joplin mobile', () => {
+	const version = j as unknown as { versionInfo: jest.Mock };
+	const failing = (name: string) => jest.fn().mockRejectedValue(new Error(`no ${name}`));
+
+	beforeEach(() => {
+		version.versionInfo.mockResolvedValue({ platform: 'mobile' });
+		jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+	});
+	afterEach(() => {
+		version.versionInfo.mockReset();
+		jest.restoreAllMocks();
+	});
+
+	it('tells the platform, assuming desktop when it cannot be told', async () => {
+		await expect(isMobile()).resolves.toBe(true);
+		version.versionInfo.mockResolvedValue({ platform: 'desktop' });
+		await expect(isMobile()).resolves.toBe(false);
+		version.versionInfo.mockRejectedValue(new Error('unsupported'));
+		await expect(isMobile()).resolves.toBe(false);
+		version.versionInfo.mockResolvedValue(undefined);
+		await expect(isMobile()).resolves.toBe(false);
+	});
+
+	it('does not offer Piper in the settings', async () => {
+		await registerSettings(true);
+		const settings = j.settings.registerSettings.mock.calls[0][0];
+		expect(settings['tts.engine'].options.piper).toBeUndefined();
+		expect(settings['tts.piperCatalogUrl']).toBeUndefined();
+	});
+
+	it('does not read the unregistered setting and falls back from a synced Piper choice', async () => {
+		stored['tts.engine'] = 'piper';
+		const settings = await readSettings(true);
+		expect(settings.engine).toBe('webspeech');
+		expect(j.settings.value).not.toHaveBeenCalledWith('tts.piperCatalogUrl');
+		stored['tts.engine'] = 'azure';
+		expect((await readSettings(true)).engine).toBe('azure');
+	});
+
+	it('starts without Piper, its dialog, its command or its menu item', async () => {
+		await start();
+		expect(j.views.dialogs.create).not.toHaveBeenCalled();
+		expect(j.plugins.dataDir).not.toHaveBeenCalled();
+		expect(command(COMMAND_PIPER_VOICES)).toBeUndefined();
+		expect(command(COMMAND_READ)).toBeDefined();
+		expect(j.views.menuItems.create).toHaveBeenCalledTimes(1);
+		await expect(messageHandler()({ type: 'piperVoices' })).resolves.toEqual({ voices: [] });
+		await expect(
+			messageHandler()({ type: 'piperSynthesize', text: 'Hi', voiceId: '' }),
+		).resolves.toMatchObject({ ok: false, error: expect.stringContaining('not available') });
+		// Reading and settings changes work without the Piper rules.
+		await command(COMMAND_READ).execute();
+		expect(j.views.panels.show).toHaveBeenLastCalledWith('panel-handle', true);
+		await j.settings.onChange.mock.calls[0][0]();
+	});
+
+	it('still loads when the views and scripts of the platform are missing', async () => {
+		j.contentScripts.register.mockRejectedValue(new Error('no content scripts'));
+		j.views.toolbarButtons.create = failing('toolbar');
+		j.views.menuItems.create = failing('menus');
+		await expect(start()).resolves.toBeUndefined();
+		expect(command(COMMAND_READ)).toBeDefined();
+		expect(console.warn).toHaveBeenCalledWith(
+			expect.stringContaining('editor script'),
+			expect.any(Error),
+		);
+		expect(console.warn).toHaveBeenCalledWith(
+			expect.stringContaining('Tools menu'),
+			expect.any(Error),
+		);
+	});
+
+	it('still loads on desktop when Piper cannot be set up', async () => {
+		version.versionInfo.mockResolvedValue({ platform: 'desktop' });
+		j.views.dialogs.create.mockRejectedValue(new Error('no dialogs'));
+		await start();
+		expect(command(COMMAND_READ)).toBeDefined();
+		expect(command(COMMAND_PIPER_VOICES)).toBeUndefined();
+		expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Piper'), expect.any(Error));
 	});
 });
