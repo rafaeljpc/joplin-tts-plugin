@@ -289,7 +289,7 @@ export async function start(): Promise<void> {
 		switch (message.type) {
 			case 'ready':
 				panelReady = true;
-				await send({ type: 'init', settings: await read() });
+				await send({ type: 'init', settings: await read(), mobile });
 				if (pendingAutoplay !== null) {
 					const autoplay = pendingAutoplay;
 					pendingAutoplay = null;

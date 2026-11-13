@@ -463,3 +463,38 @@ describe('Piper', () => {
 		expect(q('.tts-error').textContent).toContain('plugin unavailable');
 	});
 });
+
+describe('mobile layout', () => {
+	it('keeps the desktop layout unless the plugin says it is mobile', async () => {
+		const { send, q } = setup();
+		await send({ type: 'init', settings: settings() });
+		expect(q('#tts-root').classList.contains('tts-mobile')).toBe(false);
+	});
+
+	it('switches to the touch layout and shows the speed chips', async () => {
+		const { send, q } = setup();
+		await send({ type: 'init', settings: settings({ rate: 1.25 }), mobile: true });
+		expect(q('#tts-root').classList.contains('tts-mobile')).toBe(true);
+		const chips = Array.from(document.querySelectorAll<HTMLButtonElement>('.tts-chip'));
+		expect(chips.map((c) => c.textContent)).toEqual(['1×', '1.25×', '1.5×', '2×']);
+		expect(
+			chips.filter((c) => c.classList.contains('tts-chip-active')).map((c) => c.textContent),
+		).toEqual(['1.25×']);
+	});
+
+	it('changes the speed from a chip and saves it', async () => {
+		const { send, q, posted } = setup();
+		await send({ type: 'init', settings: settings({ rate: 1 }), mobile: true });
+		document.querySelectorAll<HTMLButtonElement>('.tts-chip')[3].click();
+		expect(q<HTMLSelectElement>('.tts-rate').value).toBe('2');
+		expect(q('.tts-chip-active').textContent).toBe('2×');
+		expect(posted).toContainEqual({ type: 'saveSettings', patch: { rate: 2 } });
+	});
+
+	it('puts the sentence counter in the card', async () => {
+		const { send, q } = setup();
+		await send({ type: 'init', settings: settings(), mobile: true });
+		await send({ type: 'load', title: 'N', sentences: ['a', 'b'], startIndex: 0, autoplay: false });
+		expect(q('.tts-card .tts-counter').textContent).toBe('Sentence 1 of 2');
+	});
+});

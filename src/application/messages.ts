@@ -3,7 +3,11 @@ import { DialogRequest } from './piperDialog';
 
 /** Messages sent from the plugin (main process) to the panel webview. */
 export type PluginToPanelMessage =
-	| { type: 'init'; settings: Settings }
+	| {
+			type: 'init';
+			settings: Settings;
+			/** Joplin mobile: the panel uses the touch layout. */ mobile?: boolean;
+	  }
 	| { type: 'settings'; settings: Settings }
 	| {
 			type: 'load';

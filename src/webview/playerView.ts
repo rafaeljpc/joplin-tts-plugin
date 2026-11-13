@@ -18,7 +18,12 @@ export interface PlayerView {
 	render(state: PlayerState, title: string): void;
 	setRates(rates: number[], selected: number): void;
 	setVoices(voices: Voice[], selectedId: string): void;
+	/** Switches between the desktop layout and the touch (bottom player) layout. */
+	setMobile(mobile: boolean): void;
 }
+
+/** Speeds offered as chips in the touch layout (the others stay in the select). */
+export const CHIP_RATES = [1, 1.25, 1.5, 2];
 
 function el<K extends keyof HTMLElementTagNameMap>(
 	doc: Document,
@@ -51,15 +56,25 @@ export function createView(
 	const rateSelect = el(doc, 'select', { className: 'tts-rate', title: t.speed });
 	const progress = el(doc, 'progress', { className: 'tts-progress', max: 1, value: 0 });
 	const counter = el(doc, 'div', { className: 'tts-counter' });
+	const chips = el(doc, 'div', { className: 'tts-chips' });
+	let selectedRate = 0;
+	const markChips = () => {
+		for (const chip of Array.from(chips.children) as HTMLButtonElement[]) {
+			const active = Number(chip.dataset.rate) === selectedRate;
+			chip.classList.toggle('tts-chip-active', active);
+			chip.setAttribute('aria-pressed', String(active));
+		}
+	};
 
 	root.replaceChildren(
+		el(doc, 'div', { className: 'tts-handle' }),
 		el(doc, 'div', { className: 'tts-header' }, [titleEl, closeBtn]),
-		sentenceEl,
+		// Transparent box on desktop; the highlighted card on mobile (see player.css).
+		el(doc, 'div', { className: 'tts-card' }, [counter, sentenceEl]),
 		errorEl,
 		progress,
-		counter,
 		el(doc, 'div', { className: 'tts-controls' }, [prevBtn, playBtn, nextBtn, stopBtn]),
-		el(doc, 'div', { className: 'tts-options' }, [voiceSelect, rateSelect]),
+		el(doc, 'div', { className: 'tts-options' }, [chips, voiceSelect, rateSelect]),
 	);
 
 	closeBtn.onclick = () => handlers.onClose();
@@ -94,7 +109,30 @@ export function createView(
 			prevBtn.disabled = stopBtn.disabled = nextBtn.disabled = state.total === 0;
 		},
 
+		setMobile(mobile) {
+			root.classList.toggle('tts-mobile', mobile);
+		},
+
 		setRates(rates, selected) {
+			selectedRate = selected;
+			chips.replaceChildren(
+				...CHIP_RATES.map((r) => {
+					const chip = el(doc, 'button', {
+						className: 'tts-chip',
+						textContent: `${r}×`,
+						title: t.speed,
+					});
+					chip.dataset.rate = String(r);
+					chip.onclick = () => {
+						selectedRate = r;
+						rateSelect.value = String(r);
+						markChips();
+						handlers.onRate(r);
+					};
+					return chip;
+				}),
+			);
+			markChips();
 			rateSelect.replaceChildren(
 				...rates.map((r) =>
 					el(doc, 'option', { value: String(r), textContent: `${r}×`, selected: r === selected }),

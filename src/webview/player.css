@@ -71,3 +71,163 @@
 .tts-close {
 	border: none !important;
 }
+
+/* Desktop keeps its layout: the card is transparent and the touch-only parts are hidden. */
+.tts-card {
+	display: contents;
+}
+
+.tts-handle,
+.tts-chips {
+	display: none;
+}
+
+.tts-handle {
+	order: 0;
+}
+.tts-header {
+	order: 1;
+}
+.tts-sentence {
+	order: 2;
+}
+.tts-error {
+	order: 3;
+}
+.tts-progress {
+	order: 4;
+}
+.tts-counter {
+	order: 5;
+}
+.tts-controls {
+	order: 6;
+}
+.tts-options {
+	order: 7;
+}
+
+/*
+ * Touch layout (Joplin mobile). The panel lives in a modal owned by Joplin that a plugin cannot
+ * resize or dock, so the player is pushed to the bottom of that modal and styled as a sheet.
+ */
+#tts-root.tts-mobile {
+	min-height: 100vh;
+	box-sizing: border-box;
+	justify-content: flex-end;
+	gap: 14px;
+	padding: 8px 20px 24px;
+}
+
+.tts-mobile .tts-handle {
+	display: block;
+	align-self: center;
+	width: 40px;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--joplin-divider-color);
+}
+
+.tts-mobile .tts-header {
+	min-height: 44px;
+}
+
+.tts-mobile .tts-close {
+	min-width: 44px;
+	min-height: 44px;
+	font-size: 1.5em;
+}
+
+.tts-mobile .tts-card {
+	display: block;
+	padding: 12px 16px;
+	border-radius: 12px;
+	background: var(--joplin-background-color3);
+}
+
+.tts-mobile .tts-counter {
+	margin-bottom: 4px;
+	font-size: 0.75em;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	opacity: 0.7;
+}
+
+.tts-mobile .tts-sentence {
+	min-height: 2.8em;
+	padding: 0;
+	background: none;
+	font-size: 1.05em;
+}
+
+.tts-mobile .tts-progress {
+	height: 6px;
+}
+
+.tts-mobile .tts-controls {
+	align-items: center;
+	gap: 28px;
+}
+
+#tts-root.tts-mobile button {
+	min-height: 44px;
+	min-width: 44px;
+	font-size: 1.1em;
+	border-radius: 22px;
+}
+
+#tts-root.tts-mobile .tts-play {
+	width: 68px;
+	height: 68px;
+	border-radius: 50%;
+	border: none;
+	font-size: 1.8em;
+	background: var(--joplin-url-color, #1a6bef);
+	color: var(--joplin-background-color, #fff);
+}
+
+#tts-root.tts-mobile .tts-prev,
+#tts-root.tts-mobile .tts-next {
+	width: 52px;
+	height: 52px;
+	border-radius: 50%;
+}
+
+.tts-mobile .tts-stop,
+.tts-mobile .tts-rate {
+	display: none;
+}
+
+.tts-mobile .tts-options {
+	align-items: center;
+	gap: 8px;
+}
+
+.tts-mobile .tts-chips {
+	display: flex;
+	flex: 1;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+#tts-root.tts-mobile .tts-chip {
+	padding: 0 12px;
+	font-size: 0.95em;
+}
+
+#tts-root.tts-mobile .tts-chip-active {
+	background: var(--joplin-url-color, #1a6bef);
+	border-color: var(--joplin-url-color, #1a6bef);
+	color: var(--joplin-background-color, #fff);
+}
+
+.tts-mobile .tts-voice {
+	flex: 0 1 38%;
+	min-height: 44px;
+	padding: 0 12px;
+	border: 1px solid var(--joplin-divider-color);
+	border-radius: 22px;
+	background: var(--joplin-background-color);
+	color: var(--joplin-color);
+	font-size: 0.95em;
+}

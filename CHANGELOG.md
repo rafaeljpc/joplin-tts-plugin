@@ -8,6 +8,7 @@ All notable changes to this project are documented here. Format based on
 
 ### Changed
 
+- Joplin mobile: the player now has a touch layout (untested on a device) closer to the prototype: content pushed to the bottom of the panel with a drag-handle, the current sentence in a card labelled "Sentence N of M", a large round play/pause button, speed chips (1×, 1.25×, 1.5×, 2×) and a voice selector. Joplin owns the panel modal on mobile and does not let plugins resize or dock it, so it is not a true bottom sheet. Desktop is unchanged.
 - Joplin mobile compatibility (untested on a device): the manifest declares `platforms: ["desktop", "mobile"]`, so Joplin for Android no longer lists the plugin as incompatible. On mobile the plugin does not load Node modules, Piper (its engine, voice dialog, command, menu item and the _Piper voices URL_ setting) is not offered, and a synced Piper choice falls back to the system voices.
 
 ### Fixed

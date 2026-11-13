@@ -140,6 +140,7 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	const handleMessage = (message: PluginToPanelMessage) => {
 		switch (message.type) {
 			case 'init':
+				view.setMobile(message.mobile === true);
 				void settingsManager.apply(message.settings, true);
 				break;
 			case 'settings':
