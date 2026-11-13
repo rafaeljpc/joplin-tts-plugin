@@ -13,6 +13,7 @@ const en = {
 	empty: 'This note has nothing to read.',
 	ready: 'Ready',
 	errorPrefix: 'Error: ',
+	tapToStart: 'Tap Play to start (the device blocks audio that does not start from a tap).',
 	missingGoogleKey: 'Set a Google Cloud API key in Settings > Joplin Text-to-Speech.',
 	missingAzureKey: 'Set an Azure Speech key and region in Settings > Joplin Text-to-Speech.',
 	unsupported: 'Speech synthesis is not available on this device. Try an online engine.',
@@ -55,6 +56,7 @@ const ptBR: Strings = {
 	empty: 'Esta nota não tem nada para ler.',
 	ready: 'Pronto',
 	errorPrefix: 'Erro: ',
+	tapToStart: 'Toque em ▶ para iniciar (o aparelho bloqueia áudio que não começa por um toque).',
 	missingGoogleKey:
 		'Defina uma chave da API do Google Cloud em Configurações > Joplin Text-to-Speech.',
 	missingAzureKey:

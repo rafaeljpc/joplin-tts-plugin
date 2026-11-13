@@ -1,3 +1,4 @@
+import { GESTURE_ERROR } from '../adapters/audioSlot';
 import { buildEngine, EngineEnv } from './engines';
 import { getStrings, Strings } from './i18n';
 import { createView, PlayerView } from './playerView';
@@ -179,7 +180,9 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 		reportedIndex = index;
 		void api.postMessage({ type: 'progress', index });
 	});
-	controller.onError((error) => view.showError(error.message));
+	controller.onError((error) =>
+		view.showError(error.message === GESTURE_ERROR ? t.tapToStart : error.message),
+	);
 	view.render(controller.getState(), title);
 	void api.postMessage({ type: 'ready' });
 

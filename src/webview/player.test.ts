@@ -103,6 +103,7 @@ describe('createEngine', () => {
 
 	it('creates the Azure engine, using blob URLs for the audio', async () => {
 		const audio = {
+			src: '',
 			playbackRate: 1,
 			onended: null as null | (() => void),
 			onerror: null,
@@ -143,6 +144,7 @@ describe('createEngine', () => {
 			}),
 		});
 		const audio = {
+			src: '',
 			playbackRate: 1,
 			onended: null as null | (() => void),
 			onerror: null,
@@ -158,7 +160,7 @@ describe('createEngine', () => {
 		await expect(engine.listVoices()).resolves.toHaveLength(1);
 		const speaking = engine.speak('hi', { voiceId: 'g1', rate: 1 });
 		await flush();
-		expect(AudioMock).toHaveBeenCalledWith('data:audio/mp3;base64,QQ==');
+		expect(audio.src).toBe('data:audio/mp3;base64,QQ==');
 		audio.onended?.();
 		await speaking;
 	});
@@ -344,6 +346,25 @@ describe('initPlayer', () => {
 		const { send, q } = setup({ speechSynthesis: failing as unknown as SpeechSynthesis });
 		await send({ type: 'init', settings: settings() });
 		expect(q('.tts-error').textContent).toContain('weird');
+	});
+});
+
+describe('autoplay blocked by the device', () => {
+	it('asks for a tap on Play instead of showing the raw browser error', async () => {
+		const audio = {
+			src: '',
+			playbackRate: 1,
+			onended: null,
+			onerror: null,
+			play: jest.fn(() =>
+				Promise.reject(Object.assign(new Error('gesture'), { name: 'NotAllowedError' })),
+			),
+			pause: jest.fn(),
+		};
+		const { send, q } = setup({ Audio: jest.fn(() => audio) as unknown as typeof Audio });
+		await send({ type: 'init', settings: settings({ engine: 'google-translate' }) });
+		await send({ type: 'load', title: 'n', sentences: ['One.'], startIndex: 0, autoplay: true });
+		expect(q('.tts-error').textContent).toBe(t.errorPrefix + t.tapToStart);
 	});
 });
 

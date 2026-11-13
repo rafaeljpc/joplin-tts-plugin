@@ -40,7 +40,7 @@ export class UnavailableEngine implements TtsEngine {
 }
 
 const fetchOf = (env: EngineEnv) => (url: string, init?: RequestInit) => env.scope.fetch(url, init);
-const audioOf = (env: EngineEnv) => (src: string) => new env.scope.Audio(src);
+const audioOf = (env: EngineEnv) => (src?: string) => new env.scope.Audio(src);
 
 /** One factory per engine: a new engine is added here, without touching the others. */
 export const ENGINE_FACTORIES: Record<EngineId, EngineFactory> = {
