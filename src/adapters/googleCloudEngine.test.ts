@@ -3,10 +3,11 @@ import { AudioLike, GoogleCloudEngine } from './googleCloudEngine';
 const jsonResponse = (body: unknown, ok = true, status = 200) =>
 	({ ok, status, json: async () => body }) as Response;
 
-type TestAudio = AudioLike & { src?: string };
+type TestAudio = AudioLike;
 
 function makeAudio(playImpl: () => Promise<void> | void = () => undefined): TestAudio {
 	return {
+		src: '',
 		playbackRate: 1,
 		onended: null,
 		onerror: null,
@@ -18,10 +19,7 @@ function makeAudio(playImpl: () => Promise<void> | void = () => undefined): Test
 function setup(responses: Response[], audio = makeAudio()) {
 	const fetchFn = jest.fn();
 	responses.forEach((r) => fetchFn.mockResolvedValueOnce(r));
-	const createAudio = jest.fn((src: string) => {
-		audio.src = src;
-		return audio;
-	});
+	const createAudio = jest.fn(() => audio);
 	const engine = new GoogleCloudEngine({
 		apiKey: 'K EY',
 		languageCode: 'pt-BR',
@@ -58,7 +56,7 @@ describe('GoogleCloudEngine', () => {
 	});
 
 	it('synthesizes and plays with the requested rate', async () => {
-		const { engine, fetchFn, audio, createAudio } = setup([jsonResponse({ audioContent: 'QUJD' })]);
+		const { engine, fetchFn, audio } = setup([jsonResponse({ audioContent: 'QUJD' })]);
 		const promise = engine.speak('oi', { voiceId: 'v', rate: 1.5 });
 		await tick();
 		const [url, init] = fetchFn.mock.calls[0];
@@ -68,7 +66,7 @@ describe('GoogleCloudEngine', () => {
 			voice: { languageCode: 'pt-BR', name: 'v' },
 			audioConfig: { audioEncoding: 'MP3' },
 		});
-		expect(createAudio).toHaveBeenCalledWith('data:audio/mp3;base64,QUJD');
+		expect(audio.src).toBe('data:audio/mp3;base64,QUJD');
 		expect(audio.playbackRate).toBe(1.5);
 		fire(audio, 'onended');
 		await expect(promise).resolves.toBeUndefined();

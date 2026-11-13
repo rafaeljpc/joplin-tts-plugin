@@ -31,9 +31,31 @@ Reads the open note aloud, **sentence by sentence**, with a player panel: voice 
 2. Joplin → **Tools → Options → Plugins → ⚙ → Install from file**.
 3. Restart Joplin.
 
+## Platform support
+
+✅ tested and working · ⚠️ not tested · ❌ tested and does not work · ⬜ not available on this platform
+
+| Engine                      | Windows | macOS | Linux | Android | iOS |
+| --------------------------- | :-----: | :---: | :---: | :-----: | :-: |
+| System voices               |   ✅    |  ✅   |  ⚠️   |   ❌    | ⚠️  |
+| Google Translate            |   ✅    |  ✅   |  ⚠️   |   ✅    | ⚠️  |
+| Piper                       |   ✅    |  ✅   |  ⚠️   |   ⬜    | ⬜  |
+| Microsoft Azure Speech      |   ⚠️    |  ⚠️   |  ⚠️   |   ⚠️    | ⚠️  |
+| Google Cloud Text-to-Speech |   ⚠️    |  ⚠️   |  ⚠️   |   ⚠️    | ⚠️  |
+
+Tested by the author on Windows and macOS (system voices, Google Translate and Piper) and on Android (system voices do not work; Google Translate works). The Azure and Google Cloud engines have not been tested because no API key was available; reports are welcome.
+
+Android installs a plugin from a file (**Configuration → Plugins → Advanced settings**), so it can be tested directly. The iOS app, to follow App Store rules, only installs plugins that the Joplin team marks as [recommended](https://joplinapp.org/help/apps/plugins), so this plugin cannot be installed on iOS today and has not been tested there. Android is tested only as described above; iOS is untested rather than ruled out.
+
+On Android the System voices engine depends on the WebView exposing a working `speechSynthesis`; many Android WebViews do not (no API, no voices, or speech that never starts). The player then says so and suggests the **Google Translate** engine. With any online engine the text is sent to that service; the plugin never switches to one by itself.
+
+On mobile the player opens in a compact dialog instead of the full-screen panel (it is modal, so the note is dimmed behind it; close it by tapping outside). The advanced setting _Player in a dialog_ turns it off (Joplin gives plugins no way to dock a panel at the bottom of the screen).
+
+The manifest declares mobile support and the code avoids Node-only features there. On mobile, Piper is not available: Joplin gives mobile plugins no file access (`fs`, `dataDir`), so the voices cannot be stored. It will be reconsidered if Joplin adds one. The Tools menu, keyboard shortcut, editor highlight and cursor tracking may be missing depending on what Joplin mobile provides; reading itself does not depend on them. The system voices need `speechSynthesis` in the mobile WebView; if it is missing, the player says so.
+
 ## Settings
 
-**Tools → Options → Joplin Text-to-Speech**: speech engine, API keys (stored securely), Azure region, language code (e.g. `pt-BR`) for the online engines and the Piper voice list, read the title first, Piper voices URL (advanced). Voice and speed are chosen in the player panel.
+**Tools → Options → Joplin Text-to-Speech**: speech engine, API keys (stored securely), Azure region, language (a dropdown of codes such as `pt-BR`; a value typed in an older version is kept as a "Custom" option) for the online engines and the Piper voice list, read the title first, Piper voices URL (advanced). Voice and speed are chosen in the player panel.
 
 > With any online engine (Google Translate, Google Cloud, Azure) the text of the note is sent to that service. System voices never leave your device.
 
@@ -53,7 +75,7 @@ The voice catalog (`rhasspy/piper-voices` on Hugging Face) is the advanced setti
 
 ### Step by step: first voice
 
-1. **Tools → Options → Joplin Text-to-Speech**: set **Language code** (for example `pt-BR`) so the list opens already filtered, then set **Speech engine** to **Piper**.
+1. **Tools → Options → Joplin Text-to-Speech**: set **Language** (for example Portuguese (Brazil) — `pt-BR`) so the list opens already filtered, then set **Speech engine** to **Piper**.
 2. The voice dialog opens. Pick a voice (quality: `low` is the smallest and fastest, `medium` is the usual choice, `high` is the biggest) and press **Download**. The first one also downloads the shared runtime; wait for the percentage to reach 100%.
 3. Select the voice and press **Use this voice**. Press play on a note: the first sentence takes a moment, the next ones are prepared while the current one plays.
 4. To add or remove voices later: **Tools → Joplin Text-to-Speech: Piper voices**.

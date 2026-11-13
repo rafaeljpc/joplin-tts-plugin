@@ -4,14 +4,15 @@ import { PiperEngine } from './piperEngine';
 function setup() {
 	const played: { src: string; rate: number }[] = [];
 	const audios: AudioLike[] = [];
-	const createAudio = (src: string): AudioLike => {
+	const createAudio = (): AudioLike => {
 		const audio: AudioLike = {
+			src: '',
 			playbackRate: 1,
 			onended: null,
 			onerror: null,
 			pause: jest.fn(),
 			play: () => {
-				played.push({ src, rate: audio.playbackRate });
+				played.push({ src: audio.src, rate: audio.playbackRate });
 				// Never ends by itself: the test ends it (or cancels).
 			},
 		};

@@ -103,6 +103,7 @@ describe('createEngine', () => {
 
 	it('creates the Azure engine, using blob URLs for the audio', async () => {
 		const audio = {
+			src: '',
 			playbackRate: 1,
 			onended: null as null | (() => void),
 			onerror: null,
@@ -143,6 +144,7 @@ describe('createEngine', () => {
 			}),
 		});
 		const audio = {
+			src: '',
 			playbackRate: 1,
 			onended: null as null | (() => void),
 			onerror: null,
@@ -158,7 +160,7 @@ describe('createEngine', () => {
 		await expect(engine.listVoices()).resolves.toHaveLength(1);
 		const speaking = engine.speak('hi', { voiceId: 'g1', rate: 1 });
 		await flush();
-		expect(AudioMock).toHaveBeenCalledWith('data:audio/mp3;base64,QQ==');
+		expect(audio.src).toBe('data:audio/mp3;base64,QQ==');
 		audio.onended?.();
 		await speaking;
 	});
@@ -311,6 +313,17 @@ describe('initPlayer', () => {
 		expect(q('.tts-error').textContent).toContain(t.unsupported);
 	});
 
+	it('explains an empty system voice list and suggests the online engine', async () => {
+		jest.useFakeTimers();
+		const empty = { ...makeScope().synth, getVoices: jest.fn(() => []) };
+		const { send, q } = setup({ speechSynthesis: empty as unknown as SpeechSynthesis });
+		const sending = send({ type: 'init', settings: settings() });
+		await jest.advanceTimersByTimeAsync(2000);
+		await sending;
+		jest.useRealTimers();
+		expect(q('.tts-error').textContent).toContain(t.webspeechNoVoices);
+	});
+
 	it('reports voice listing failures', async () => {
 		const failing = {
 			cancel: () => undefined,
@@ -333,6 +346,25 @@ describe('initPlayer', () => {
 		const { send, q } = setup({ speechSynthesis: failing as unknown as SpeechSynthesis });
 		await send({ type: 'init', settings: settings() });
 		expect(q('.tts-error').textContent).toContain('weird');
+	});
+});
+
+describe('autoplay blocked by the device', () => {
+	it('asks for a tap on Play instead of showing the raw browser error', async () => {
+		const audio = {
+			src: '',
+			playbackRate: 1,
+			onended: null,
+			onerror: null,
+			play: jest.fn(() =>
+				Promise.reject(Object.assign(new Error('gesture'), { name: 'NotAllowedError' })),
+			),
+			pause: jest.fn(),
+		};
+		const { send, q } = setup({ Audio: jest.fn(() => audio) as unknown as typeof Audio });
+		await send({ type: 'init', settings: settings({ engine: 'google-translate' }) });
+		await send({ type: 'load', title: 'n', sentences: ['One.'], startIndex: 0, autoplay: true });
+		expect(q('.tts-error').textContent).toBe(t.errorPrefix + t.tapToStart);
 	});
 });
 
@@ -461,5 +493,58 @@ describe('Piper', () => {
 		await send({ type: 'init', settings: settings({ engine: 'piper' }) });
 		await send({ type: 'voices' });
 		expect(q('.tts-error').textContent).toContain('plugin unavailable');
+	});
+});
+
+describe('mobile layout', () => {
+	it('keeps the desktop layout unless the plugin says it is mobile', async () => {
+		const { send, q } = setup();
+		await send({ type: 'init', settings: settings() });
+		expect(q('#tts-root').classList.contains('tts-mobile')).toBe(false);
+	});
+
+	it('switches to the touch layout and shows the speed chips', async () => {
+		const { send, q } = setup();
+		await send({ type: 'init', settings: settings({ rate: 1.25 }), mobile: true });
+		expect(q('#tts-root').classList.contains('tts-mobile')).toBe(true);
+		const chips = Array.from(document.querySelectorAll<HTMLButtonElement>('.tts-chip'));
+		expect(chips.map((c) => c.textContent)).toEqual(['1×', '1.25×', '1.5×', '2×']);
+		expect(
+			chips.filter((c) => c.classList.contains('tts-chip-active')).map((c) => c.textContent),
+		).toEqual(['1.25×']);
+	});
+
+	it('changes the speed from a chip and saves it', async () => {
+		const { send, q, posted } = setup();
+		await send({ type: 'init', settings: settings({ rate: 1 }), mobile: true });
+		document.querySelectorAll<HTMLButtonElement>('.tts-chip')[3].click();
+		expect(q<HTMLSelectElement>('.tts-rate').value).toBe('2');
+		expect(q('.tts-chip-active').textContent).toBe('2×');
+		expect(posted).toContainEqual({ type: 'saveSettings', patch: { rate: 2 } });
+	});
+
+	it('puts the sentence counter in the card', async () => {
+		const { send, q } = setup();
+		await send({ type: 'init', settings: settings(), mobile: true });
+		await send({ type: 'load', title: 'N', sentences: ['a', 'b'], startIndex: 0, autoplay: false });
+		expect(q('.tts-card .tts-counter').textContent).toBe('Sentence 1 of 2');
+	});
+
+	it('uses the compact dialog layout only when told it is in the dialog', async () => {
+		const { send, q } = setup();
+		await send({ type: 'init', settings: settings(), mobile: true });
+		expect(q('#tts-root').classList.contains('tts-dialog')).toBe(false);
+		await send({ type: 'init', settings: settings(), mobile: true, dialog: true });
+		expect(q('#tts-root').classList.contains('tts-dialog')).toBe(true);
+	});
+
+	it('starts reading from the tap on Play inside the dialog, without asking the plugin', async () => {
+		const { send, q, posted, player } = setup();
+		await send({ type: 'init', settings: settings(), mobile: true, dialog: true });
+		await send({ type: 'load', title: 'N', sentences: ['a', 'b'], startIndex: 0, autoplay: false });
+		posted.length = 0;
+		q<HTMLButtonElement>('.tts-play').click();
+		expect(player.getController().getState().status).toBe('playing');
+		expect(posted).not.toContainEqual({ type: 'reload', autoplay: true });
 	});
 });

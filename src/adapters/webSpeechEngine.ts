@@ -1,13 +1,26 @@
 import { SpeakOptions, TtsEngine, Voice } from '../domain/types';
 
 const VOICES_TIMEOUT_MS = 1500;
+/** Time `speak()` has to fire `onstart`; Android WebViews may accept it and never speak. */
+const START_TIMEOUT_MS = 5000;
+
+export interface WebSpeechMessages {
+	/** Shown when the synthesizer accepted the text but never started speaking. */
+	noStart: string;
+}
 
 /** Engine backed by the browser/Electron `speechSynthesis` (system voices). */
 export class WebSpeechEngine implements TtsEngine {
 	constructor(
 		private synth: SpeechSynthesis,
 		private Utterance: typeof SpeechSynthesisUtterance,
+		private messages: WebSpeechMessages = {
+			noStart: 'Speech synthesis did not start (no voice engine responded).',
+		},
 	) {}
+
+	// Chromium may garbage-collect an utterance still being spoken and drop its events.
+	private current: SpeechSynthesisUtterance | null = null;
 
 	static isSupported(scope: { speechSynthesis?: SpeechSynthesis }): boolean {
 		return typeof scope.speechSynthesis !== 'undefined';
@@ -28,12 +41,25 @@ export class WebSpeechEngine implements TtsEngine {
 				utterance.voice = voice;
 				utterance.lang = voice.lang;
 			}
-			utterance.onend = () => resolve();
+			const timer = setTimeout(() => {
+				this.synth.cancel();
+				this.current = null;
+				reject(new Error(this.messages.noStart));
+			}, START_TIMEOUT_MS);
+			utterance.onstart = () => clearTimeout(timer);
+			utterance.onend = () => {
+				clearTimeout(timer);
+				resolve();
+			};
 			utterance.onerror = (event) => {
+				clearTimeout(timer);
 				// Cancelling is a normal control flow, not a failure.
 				if (event.error === 'canceled' || event.error === 'interrupted') resolve();
 				else reject(new Error(`Speech synthesis failed: ${event.error}`));
 			};
+			this.current = utterance;
+			// A synthesizer left paused (seen on Android) swallows every utterance.
+			if (this.synth.paused) this.synth.resume();
 			this.synth.speak(utterance);
 		});
 	}

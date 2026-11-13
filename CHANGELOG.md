@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
+### Changed
+
+- The _Language_ setting (`tts.language`) is now a dropdown of 58 language/locale codes with readable labels (for example "Portuguese (Brazil) — pt-BR") instead of free text. It is used to list voices, as the default language of the online engines and to filter the Piper voice list. A value already stored that is not in the list (for example `pt` or `es-AR`) is kept as an extra "Custom — code" option.
+- On Joplin mobile the player is shown in a plugin dialog sized to its content (`setFitToContent`, no button row) instead of the full-screen panel, so it is only as tall as the player. A dialog is modal: the note stays visible but dimmed and untouchable, and the dialog closes with a tap outside it or the back button (which also stops the reading). Reading starts from a tap on Play inside the dialog, which owns the audio element. The panel cannot be docked at the bottom of the screen on mobile (Joplin gives plugins no way to position it), which is why a dialog is used. The advanced setting _Player in a dialog_ (mobile) switches back to the panel after restarting Joplin. Desktop is unchanged.
+- Joplin mobile: the player now has a touch layout closer to the prototype: content pushed to the bottom of the panel with a drag-handle, the current sentence in a card labelled "Sentence N of M", a large round play/pause button, speed chips (1×, 1.25×, 1.5×, 2×) and a voice selector. Joplin owns the panel modal on mobile and does not let plugins resize or dock it, so it is not a true bottom sheet. Desktop is unchanged.
+- Joplin mobile compatibility: the manifest declares `platforms: ["desktop", "mobile"]`, so Joplin for Android no longer lists the plugin as incompatible. On mobile the plugin does not load Node modules, Piper (its engine, voice dialog, command, menu item and the _Piper voices URL_ setting) is not offered, and a synced Piper choice falls back to the system voices.
+
+### Fixed
+
+- Online engines (Google Translate, Google Cloud, Azure, Piper) on Android: every sentence asked for a new tap ("play() can only be initiated by a user gesture"). Playback now reuses one audio element that the first tap unlocks, so later sentences play on their own. If a read-aloud starts without a tap (autoplay from the plugin), the panel asks to "Tap Play to start" (translated). Desktop is unchanged.
+- The plugin no longer stops loading when a view the platform lacks fails (editor and viewer scripts, toolbar buttons, Tools menu, Piper setup): each is optional and logs a warning instead.
+- System voices on Android: speech that is accepted but never starts now fails after 5 seconds with a clear message instead of hanging silently, an empty system voice list explains that the WebView has no speech engine, and both suggest the online Google Translate engine (the text is then sent to Google). The utterance is also kept referenced and a paused synthesizer is resumed before speaking.
+
+### Added
+
+- README: platform support matrix (Windows, macOS, Linux, Android, iOS) per speech engine, with what has been tested.
+
 ## [0.4.0] - 2026-11-11
 
 ### Added

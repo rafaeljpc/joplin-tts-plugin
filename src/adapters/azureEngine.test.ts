@@ -17,6 +17,7 @@ const failure = (status: number) => ({ ok: false, status }) as Response;
 
 function setup(languageCode = 'pt-BR') {
 	const audio: AudioLike = {
+		src: '',
 		playbackRate: 1,
 		onended: null,
 		onerror: null,
