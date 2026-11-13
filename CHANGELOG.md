@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Changed
+
+- Joplin mobile compatibility (untested on a device): the manifest declares `platforms: ["desktop", "mobile"]`, so Joplin for Android no longer lists the plugin as incompatible. On mobile the plugin does not load Node modules, Piper (its engine, voice dialog, command, menu item and the _Piper voices URL_ setting) is not offered, and a synced Piper choice falls back to the system voices.
+
+### Fixed
+
+- The plugin no longer stops loading when a view the platform lacks fails (editor and viewer scripts, toolbar buttons, Tools menu, Piper setup): each is optional and logs a warning instead.
+
 ### Added
 
 - README: platform support matrix (Windows, macOS, Linux, Android, iOS) per speech engine, with what has been tested.

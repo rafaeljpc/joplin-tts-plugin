@@ -47,6 +47,8 @@ Tested by the author on Windows and macOS (system voices, Google Translate and P
 
 Joplin Android supports plugins and iOS runs them only after Joplin approves them as recommended, so Android and iOS are untested rather than ruled out.
 
+The manifest declares mobile support and the code avoids Node-only features there, but this is **untested on a device**. On mobile, Piper is not offered (it needs Node), and the Tools menu, keyboard shortcut, editor highlight and cursor tracking may be missing depending on what Joplin mobile provides; reading itself does not depend on them. The system voices need `speechSynthesis` in the mobile WebView; if it is missing, the player says so.
+
 ## Settings
 
 **Tools → Options → Joplin Text-to-Speech**: speech engine, API keys (stored securely), Azure region, language code (e.g. `pt-BR`) for the online engines and the Piper voice list, read the title first, Piper voices URL (advanced). Voice and speed are chosen in the player panel.

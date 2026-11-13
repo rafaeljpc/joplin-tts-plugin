@@ -29,6 +29,17 @@ Joplin Android already supports plugins (installation from file under "Advanced 
   1. **Google Cloud TTS** with `<audio>`, same as desktop — the simplest.
   2. **Native Android TTS**: would require a contribution to Joplin core (for example with `react-native-tts`) to expose an API to plugins. More work and subject to the maintainer's approval.
 
+### What the code does on mobile (v0.5, untested on a device)
+
+The manifest declares `"platforms": ["desktop", "mobile"]`; without it Joplin shows the plugin as incompatible. Mobile plugins run in a webview without Node, so:
+
+- `platform` from `joplin.versionInfo()` selects the mobile path (desktop if it cannot be read).
+- **Piper is desktop only**: it needs `fs`, `path` and a downloaded runtime. On mobile the Node-dependent composition root is not loaded (it is `require`d lazily), the dialog, command, menu item and _Piper voices URL_ setting are not registered, the engine is not offered, and a synced `piper` choice is read as `webspeech`.
+- Content scripts (editor highlight, viewer selection), toolbar buttons and menu items are registered as optional steps: a failure is logged and the plugin keeps loading. Reading does not depend on them.
+- Without `speechSynthesis` the System voices engine reports "unsupported" (already the case); the online engines are unaffected.
+
+Open points for a real device: whether panels, toolbar buttons and the commands are reachable in Joplin mobile's UI, whether the panel can autoplay audio without a gesture, and whether `speechSynthesis` exists in the Android WebView.
+
 ## iPhone
 
 Two separate problems:
