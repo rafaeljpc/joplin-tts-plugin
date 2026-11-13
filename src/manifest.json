@@ -3,7 +3,7 @@
   "id": "com.rafaeljpc.joplin-tts",
   "app_min_version": "3.0",
   "platforms": ["desktop", "mobile"],
-  "version": "0.5.0-dev",
+  "version": "0.5.0",
   "name": "Joplin Text-to-Speech",
   "description": "Read the open note aloud, sentence by sentence, with voice selection, play/pause and speed controls.",
   "author": "rafaeljpc",
