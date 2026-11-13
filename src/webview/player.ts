@@ -1,3 +1,4 @@
+import { GESTURE_ERROR } from '../adapters/audioSlot';
 import { buildEngine, EngineEnv } from './engines';
 import { getStrings, Strings } from './i18n';
 import { createView, PlayerView } from './playerView';
@@ -61,6 +62,11 @@ function createSettingsManager(controller: PlayerController, view: PlayerView, e
 		} catch (error) {
 			view.showError(error instanceof Error ? error.message : String(error));
 		}
+		// An empty list is not fatal (the default voice may still work) but is the usual
+		// sign of an Android WebView without a speech engine: say so and name the way out.
+		if (voiceIds && voices.length === 0 && settings.engine === 'webspeech') {
+			view.showError(env.t.webspeechNoVoices);
+		}
 		view.setVoices(voices, settings.voice);
 	};
 
@@ -105,6 +111,8 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	const env: EngineEnv = { scope, t, request };
 	const controller = new PlayerController(buildEngine({ ...DEFAULT_SETTINGS }, env));
 	let title = '';
+	// Mobile dialog: the tap on Play must start the audio in this webview.
+	let inDialog = false;
 
 	const save = (patch: Partial<Settings>) => void api.postMessage({ type: 'saveSettings', patch });
 
@@ -117,7 +125,7 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 			view.showError(null);
 			// Starting from idle asks the plugin for a fresh plan, so reading begins at
 			// the editor cursor or the current selection. Resume/pause act locally.
-			if (controller.getState().status === 'idle')
+			if (controller.getState().status === 'idle' && !inDialog)
 				void api.postMessage({ type: 'reload', autoplay: true });
 			else controller.toggle();
 		},
@@ -140,6 +148,8 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 	const handleMessage = (message: PluginToPanelMessage) => {
 		switch (message.type) {
 			case 'init':
+				inDialog = message.dialog === true;
+				view.setMobile(message.mobile === true, inDialog);
 				void settingsManager.apply(message.settings, true);
 				break;
 			case 'settings':
@@ -173,7 +183,9 @@ export function initPlayer(doc: Document, api: WebviewApiLike, scope: WebviewSco
 		reportedIndex = index;
 		void api.postMessage({ type: 'progress', index });
 	});
-	controller.onError((error) => view.showError(error.message));
+	controller.onError((error) =>
+		view.showError(error.message === GESTURE_ERROR ? t.tapToStart : error.message),
+	);
 	view.render(controller.getState(), title);
 	void api.postMessage({ type: 'ready' });
 

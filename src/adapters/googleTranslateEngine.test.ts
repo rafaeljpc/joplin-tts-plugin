@@ -4,21 +4,26 @@ import { GOOGLE_TRANSLATE_VOICES, GoogleTranslateEngine, MAX_CHARS } from './goo
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 function setup() {
+	// `created` lists the sentences that were played; `elements` every audio element made.
 	const created: { src: string; audio: AudioLike }[] = [];
-	const createAudio = jest.fn((src: string) => {
+	const elements: AudioLike[] = [];
+	const createAudio = jest.fn((src?: string) => {
 		const audio: AudioLike = {
+			src: src ?? '',
 			playbackRate: 1,
 			onended: null,
 			onerror: null,
-			play: jest.fn(),
+			play: jest.fn(() => {
+				created.push({ src: audio.src, audio });
+			}),
 			pause: jest.fn(),
 		};
-		created.push({ src, audio });
+		elements.push(audio);
 		return audio;
 	});
 	const engine = new GoogleTranslateEngine({ languageCode: 'pt-BR', createAudio });
 	const end = (i: number) => (created[i].audio.onended as (e: Event) => void)(new Event('ended'));
-	return { engine, created, end };
+	return { engine, created, elements, end };
 }
 
 describe('GoogleTranslateEngine', () => {
@@ -86,32 +91,46 @@ describe('GoogleTranslateEngine', () => {
 });
 
 describe('GoogleTranslateEngine prefetch', () => {
-	it('preloads the next sentence once and plays that same audio element', async () => {
-		const { engine, created, end } = setup();
+	it('preloads the next sentence once and plays it through the shared element', async () => {
+		const { engine, created, elements, end } = setup();
 		engine.prefetch('Next one.', { voiceId: '', rate: 1 });
 		engine.prefetch('Next one.', { voiceId: '', rate: 1 });
-		expect(created).toHaveLength(1);
-		expect(created[0].audio.preload).toBe('auto');
-		expect(new URL(created[0].src).searchParams.get('tl')).toBe('pt-BR');
+		expect(elements).toHaveLength(1);
+		expect(elements[0].preload).toBe('auto');
+		expect(new URL(elements[0].src).searchParams.get('tl')).toBe('pt-BR');
 
 		const speaking = engine.speak('Next one.', { voiceId: '', rate: 2 });
 		await tick();
+		expect(elements).toHaveLength(2);
 		expect(created).toHaveLength(1);
+		expect(created[0].audio).toBe(elements[1]);
 		expect(created[0].audio.playbackRate).toBe(2);
-		expect(created[0].audio.play).toHaveBeenCalled();
 		end(0);
 		await speaking;
 	});
 
-	it('ignores a preload that does not match, and empty text', async () => {
-		const { engine, created, end } = setup();
+	it('plays every sentence on the same audio element', async () => {
+		const { engine, created, elements, end } = setup();
+		for (const text of ['One.', 'Two.']) {
+			const speaking = engine.speak(text, { voiceId: '', rate: 1 });
+			await tick();
+			end(created.length - 1);
+			await speaking;
+		}
+		expect(elements).toHaveLength(1);
+		expect(created).toHaveLength(2);
+		expect(created[0].audio).toBe(created[1].audio);
+	});
+
+	it('ignores empty text, and a preload that does not match', async () => {
+		const { engine, created, elements, end } = setup();
 		engine.prefetch('', { voiceId: 'en', rate: 1 });
-		expect(created).toHaveLength(0);
+		expect(elements).toHaveLength(0);
 		engine.prefetch('Other.', { voiceId: 'en', rate: 1 });
 		const speaking = engine.speak('Different.', { voiceId: 'en', rate: 1 });
 		await tick();
-		expect(created).toHaveLength(2);
-		end(1);
+		expect(new URL(created[0].src).searchParams.get('q')).toBe('Different.');
+		end(0);
 		await speaking;
 	});
 });

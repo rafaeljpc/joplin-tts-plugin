@@ -4,6 +4,7 @@ class FakeUtterance {
 	rate = 1;
 	voice: unknown = null;
 	lang = '';
+	onstart: (() => void) | null = null;
 	onend: (() => void) | null = null;
 	onerror: ((e: { error: string }) => void) | null = null;
 	constructor(public text: string) {}
@@ -92,6 +93,54 @@ describe('WebSpeechEngine', () => {
 		const promise = engineFor(synth).speak('x', { voiceId: '', rate: 1 });
 		(synth.speak.mock.calls[0][0] as FakeUtterance).onerror?.({ error: 'synthesis-failed' });
 		await expect(promise).rejects.toThrow('synthesis-failed');
+	});
+
+	describe('start watchdog', () => {
+		beforeEach(() => jest.useFakeTimers());
+		afterEach(() => jest.useRealTimers());
+
+		it('rejects and cancels when speech never starts', async () => {
+			const { synth } = makeSynth([]);
+			const promise = engineFor(synth).speak('x', { voiceId: '', rate: 1 });
+			const assertion = expect(promise).rejects.toThrow('did not start');
+			jest.advanceTimersByTime(5001);
+			await assertion;
+			expect(synth.cancel).toHaveBeenCalled();
+		});
+
+		it('uses the provided message', async () => {
+			const { synth } = makeSynth([]);
+			const engine = new WebSpeechEngine(
+				synth as unknown as SpeechSynthesis,
+				FakeUtterance as unknown as typeof SpeechSynthesisUtterance,
+				{ noStart: 'custom' },
+			);
+			const promise = engine.speak('x', { voiceId: '', rate: 1 });
+			const assertion = expect(promise).rejects.toThrow('custom');
+			jest.advanceTimersByTime(5001);
+			await assertion;
+		});
+
+		it('does not fail once speech started and ended', async () => {
+			const { synth } = makeSynth([]);
+			const promise = engineFor(synth).speak('x', { voiceId: '', rate: 1 });
+			const utterance = synth.speak.mock.calls[0][0] as FakeUtterance;
+			utterance.onstart?.();
+			jest.advanceTimersByTime(10000);
+			utterance.onend?.();
+			await expect(promise).resolves.toBeUndefined();
+			expect(synth.cancel).not.toHaveBeenCalled();
+		});
+
+		it('resumes a paused synthesizer before speaking', () => {
+			const { synth } = makeSynth([]);
+			Object.assign(synth, { paused: true, resume: jest.fn() });
+			void engineFor(synth)
+				.speak('x', { voiceId: '', rate: 1 })
+				.catch(() => undefined);
+			expect((synth as unknown as { resume: jest.Mock }).resume).toHaveBeenCalled();
+			jest.advanceTimersByTime(6000);
+		});
 	});
 
 	it('cancels', () => {

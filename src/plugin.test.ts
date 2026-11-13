@@ -10,6 +10,7 @@ import {
 	PANEL_ID,
 	VOICE_DIALOG_HTML,
 	VOICE_DIALOG_ID,
+	isMobile,
 	readSettings,
 	registerSettings,
 	start,
@@ -57,6 +58,28 @@ const command = (name: string) =>
 const sent = () => j.views.panels.postMessage.mock.calls.map((c) => c[1]);
 
 describe('registerSettings / readSettings', () => {
+	it('offers the language as a dropdown and keeps a custom stored value', async () => {
+		await registerSettings();
+		const plain = j.settings.registerSettings.mock.calls[0][0]['tts.language'];
+		expect(plain.isEnum).toBe(true);
+		expect(plain.options['pt-BR']).toContain('pt-BR');
+		expect(plain.options.pt).toBeUndefined();
+
+		j.settings.registerSettings.mockClear();
+		j.settings.value.mockResolvedValueOnce('pt');
+		await registerSettings();
+		expect(j.settings.registerSettings.mock.calls[0][0]['tts.language'].options.pt).toBe(
+			'Custom \u2014 pt',
+		);
+	});
+
+	it('still registers the language when reading the stored value fails', async () => {
+		j.settings.value.mockRejectedValueOnce(new Error('nope'));
+		await registerSettings();
+		const language = j.settings.registerSettings.mock.calls[0][0]['tts.language'];
+		expect(language.options['en-US']).toBeDefined();
+	});
+
 	it('registers a section and every setting', async () => {
 		await registerSettings();
 		expect(j.settings.registerSection).toHaveBeenCalledWith('ttsPlugin', expect.any(Object));
@@ -505,5 +528,168 @@ describe('Piper voices', () => {
 		await onChange()();
 		expect(j.views.dialogs.open).not.toHaveBeenCalled();
 		installed.mockRestore();
+	});
+});
+
+describe('Joplin mobile', () => {
+	const version = j as unknown as { versionInfo: jest.Mock };
+	const failing = (name: string) => jest.fn().mockRejectedValue(new Error(`no ${name}`));
+
+	beforeEach(() => {
+		version.versionInfo.mockResolvedValue({ platform: 'mobile' });
+		stored['tts.mobileDialog'] = false; // these cases cover the panel; the dialog has its own
+		jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+	});
+	afterEach(() => {
+		version.versionInfo.mockReset();
+		jest.restoreAllMocks();
+	});
+
+	it('tells the platform, assuming desktop when it cannot be told', async () => {
+		await expect(isMobile()).resolves.toBe(true);
+		version.versionInfo.mockResolvedValue({ platform: 'desktop' });
+		await expect(isMobile()).resolves.toBe(false);
+		version.versionInfo.mockRejectedValue(new Error('unsupported'));
+		await expect(isMobile()).resolves.toBe(false);
+		version.versionInfo.mockResolvedValue(undefined);
+		await expect(isMobile()).resolves.toBe(false);
+	});
+
+	it('does not offer Piper in the settings', async () => {
+		await registerSettings(true);
+		const settings = j.settings.registerSettings.mock.calls[0][0];
+		expect(settings['tts.engine'].options.piper).toBeUndefined();
+		expect(settings['tts.piperCatalogUrl']).toBeUndefined();
+		expect(settings['tts.mobileDialog']).toMatchObject({ value: true, advanced: true });
+	});
+
+	it('does not read the unregistered setting and falls back from a synced Piper choice', async () => {
+		stored['tts.engine'] = 'piper';
+		const settings = await readSettings(true);
+		expect(settings.engine).toBe('webspeech');
+		expect(j.settings.value).not.toHaveBeenCalledWith('tts.piperCatalogUrl');
+		stored['tts.engine'] = 'azure';
+		expect((await readSettings(true)).engine).toBe('azure');
+	});
+
+	it('starts without Piper, its dialog, its command or its menu item', async () => {
+		await start();
+		expect(j.views.dialogs.create).not.toHaveBeenCalled();
+		expect(j.plugins.dataDir).not.toHaveBeenCalled();
+		expect(command(COMMAND_PIPER_VOICES)).toBeUndefined();
+		expect(command(COMMAND_READ)).toBeDefined();
+		expect(j.views.menuItems.create).toHaveBeenCalledTimes(1);
+		await expect(messageHandler()({ type: 'piperVoices' })).resolves.toEqual({ voices: [] });
+		await expect(
+			messageHandler()({ type: 'piperSynthesize', text: 'Hi', voiceId: '' }),
+		).resolves.toMatchObject({ ok: false, error: expect.stringContaining('not available') });
+		// Reading and settings changes work without the Piper rules.
+		await command(COMMAND_READ).execute();
+		expect(j.views.panels.show).toHaveBeenLastCalledWith('panel-handle', true);
+		await j.settings.onChange.mock.calls[0][0]();
+	});
+
+	it('still loads when the views and scripts of the platform are missing', async () => {
+		j.contentScripts.register.mockRejectedValue(new Error('no content scripts'));
+		j.views.toolbarButtons.create = failing('toolbar');
+		j.views.menuItems.create = failing('menus');
+		await expect(start()).resolves.toBeUndefined();
+		expect(command(COMMAND_READ)).toBeDefined();
+		expect(console.warn).toHaveBeenCalledWith(
+			expect.stringContaining('editor script'),
+			expect.any(Error),
+		);
+		expect(console.warn).toHaveBeenCalledWith(
+			expect.stringContaining('Tools menu'),
+			expect.any(Error),
+		);
+	});
+
+	it('still loads on desktop when Piper cannot be set up', async () => {
+		version.versionInfo.mockResolvedValue({ platform: 'desktop' });
+		j.views.dialogs.create.mockRejectedValue(new Error('no dialogs'));
+		await start();
+		expect(command(COMMAND_READ)).toBeDefined();
+		expect(command(COMMAND_PIPER_VOICES)).toBeUndefined();
+		expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Piper'), expect.any(Error));
+	});
+});
+
+describe('Joplin mobile dialog (experimental)', () => {
+	const version = j as unknown as { versionInfo: jest.Mock };
+	const dialogHandler = () =>
+		j.views.panels.onMessage.mock.calls.find(([handle]) => handle === 'dialog-handle')[1] as (
+			m: PanelToPluginMessage,
+		) => Promise<unknown>;
+	const onSelection = () =>
+		j.workspace.onNoteSelectionChange.mock.calls[0][0] as () => Promise<void>;
+
+	beforeEach(() => {
+		version.versionInfo.mockResolvedValue({ platform: 'mobile' });
+		j.views.dialogs.open.mockReturnValue(new Promise(() => undefined));
+	});
+	afterEach(() => version.versionInfo.mockReset());
+
+	it('builds a fit-to-content dialog without buttons instead of the panel', async () => {
+		await start();
+		expect(j.views.panels.create).not.toHaveBeenCalled();
+		expect(j.views.dialogs.create).toHaveBeenCalledWith('tts.playerDialog');
+		expect(j.views.dialogs.setHtml).toHaveBeenCalledWith('dialog-handle', PANEL_HTML);
+		expect(j.views.dialogs.addScript.mock.calls.map((c) => c[1])).toEqual([
+			'./webview/player.css',
+			'./webview/player.js',
+		]);
+		expect(j.views.dialogs.setFitToContent).toHaveBeenCalledWith('dialog-handle', true);
+		expect(j.views.dialogs.setButtons).toHaveBeenCalledWith('dialog-handle', []);
+		expect(j.views.panels.show).not.toHaveBeenCalled();
+	});
+
+	it('opens on the command and loads the note without autoplay once the dialog is ready', async () => {
+		await start();
+		await command(COMMAND_READ).execute();
+		expect(j.views.dialogs.open).toHaveBeenCalledWith('dialog-handle');
+		await dialogHandler()({ type: 'ready' });
+		expect(sent()[0]).toMatchObject({ type: 'init', mobile: true, dialog: true });
+		expect(sent()[1]).toMatchObject({ type: 'load', autoplay: false });
+		expect(j.views.panels.show).not.toHaveBeenCalled();
+	});
+
+	it('forgets the dialog and the highlight when it closes', async () => {
+		let close: () => void = () => undefined;
+		j.views.dialogs.open.mockReturnValue(new Promise<void>((resolve) => (close = resolve)));
+		await start();
+		await command(COMMAND_READ).execute();
+		await dialogHandler()({ type: 'ready' });
+		j.views.panels.postMessage.mockClear();
+		await onSelection()(); // dialog open and ready: reload
+		expect(sent()[0]).toMatchObject({ type: 'load' });
+		close();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		j.views.panels.postMessage.mockClear();
+		await onSelection()(); // closed: nothing to reload
+		expect(sent()).toEqual([]);
+	});
+
+	it('has nothing to hide on close or stop', async () => {
+		await start();
+		await dialogHandler()({ type: 'close' });
+		await command(COMMAND_STOP).execute();
+		expect(sent()).toEqual([{ type: 'stop' }]);
+		expect(j.views.panels.show).not.toHaveBeenCalled();
+	});
+
+	it('falls back to the panel when the setting is off', async () => {
+		stored['tts.mobileDialog'] = false;
+		await start();
+		expect(j.views.dialogs.create).not.toHaveBeenCalled();
+		expect(j.views.panels.create).toHaveBeenCalledWith(PANEL_ID);
+	});
+
+	it('keeps the panel on desktop whatever the setting', async () => {
+		version.versionInfo.mockResolvedValue({ platform: 'desktop' });
+		stored['tts.mobileDialog'] = true;
+		await start();
+		expect(j.views.panels.create).toHaveBeenCalledWith(PANEL_ID);
+		expect(j.views.dialogs.setFitToContent).not.toHaveBeenCalled();
 	});
 });
