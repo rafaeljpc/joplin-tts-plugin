@@ -31,6 +31,22 @@ Reads the open note aloud, **sentence by sentence**, with a player panel: voice 
 2. Joplin → **Tools → Options → Plugins → ⚙ → Install from file**.
 3. Restart Joplin.
 
+## Platform support
+
+✅ tested and working · ⚠️ not tested · ❌ tested and does not work / not available
+
+| Engine                      | Windows | macOS | Linux | Android | iOS |
+| --------------------------- | :-----: | :---: | :---: | :-----: | :-: |
+| System voices               |   ✅    |  ✅   |  ⚠️   |   ⚠️    | ⚠️  |
+| Google Translate            |   ✅    |  ✅   |  ⚠️   |   ⚠️    | ⚠️  |
+| Piper                       |   ✅    |  ✅   |  ⚠️   |   ⚠️    | ⚠️  |
+| Microsoft Azure Speech      |   ⚠️    |  ⚠️   |  ⚠️   |   ⚠️    | ⚠️  |
+| Google Cloud Text-to-Speech |   ⚠️    |  ⚠️   |  ⚠️   |   ⚠️    | ⚠️  |
+
+Tested by the author on Windows and macOS (system voices, Google Translate and Piper). The Azure and Google Cloud engines have not been tested because no API key was available; reports are welcome.
+
+Joplin Android supports plugins and iOS runs them only after Joplin approves them as recommended, so Android and iOS are untested rather than ruled out.
+
 ## Settings
 
 **Tools → Options → Joplin Text-to-Speech**: speech engine, API keys (stored securely), Azure region, language code (e.g. `pt-BR`) for the online engines and the Piper voice list, read the title first, Piper voices URL (advanced). Voice and speed are chosen in the player panel.

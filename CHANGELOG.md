@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Added
+
+- README: platform support matrix (Windows, macOS, Linux, Android, iOS) per speech engine, with what has been tested.
+
 ## [0.4.0] - 2026-11-11
 
 ### Added
