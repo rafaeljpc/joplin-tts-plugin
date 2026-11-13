@@ -33,13 +33,13 @@ Reads the open note aloud, **sentence by sentence**, with a player panel: voice 
 
 ## Platform support
 
-✅ tested and working · ⚠️ not tested · ❌ tested and does not work / not available
+✅ tested and working · ⚠️ not tested · ❌ tested and does not work · ⬜ not available on this platform
 
 | Engine                      | Windows | macOS | Linux | Android | iOS |
 | --------------------------- | :-----: | :---: | :---: | :-----: | :-: |
 | System voices               |   ✅    |  ✅   |  ⚠️   |   ⚠️    | ⚠️  |
 | Google Translate            |   ✅    |  ✅   |  ⚠️   |   ⚠️    | ⚠️  |
-| Piper                       |   ✅    |  ✅   |  ⚠️   |   ⚠️    | ⚠️  |
+| Piper                       |   ✅    |  ✅   |  ⚠️   |   ⬜    | ⬜  |
 | Microsoft Azure Speech      |   ⚠️    |  ⚠️   |  ⚠️   |   ⚠️    | ⚠️  |
 | Google Cloud Text-to-Speech |   ⚠️    |  ⚠️   |  ⚠️   |   ⚠️    | ⚠️  |
 
@@ -47,7 +47,7 @@ Tested by the author on Windows and macOS (system voices, Google Translate and P
 
 Joplin Android supports plugins and iOS runs them only after Joplin approves them as recommended, so Android and iOS are untested rather than ruled out.
 
-The manifest declares mobile support and the code avoids Node-only features there, but this is **untested on a device**. On mobile, Piper is not offered (it needs Node), and the Tools menu, keyboard shortcut, editor highlight and cursor tracking may be missing depending on what Joplin mobile provides; reading itself does not depend on them. The system voices need `speechSynthesis` in the mobile WebView; if it is missing, the player says so.
+The manifest declares mobile support and the code avoids Node-only features there, but this is **untested on a device**. On mobile, Piper is not available: Joplin gives mobile plugins no file access (`fs`, `dataDir`), so the voices cannot be stored. It will be reconsidered if Joplin adds one. The Tools menu, keyboard shortcut, editor highlight and cursor tracking may be missing depending on what Joplin mobile provides; reading itself does not depend on them. The system voices need `speechSynthesis` in the mobile WebView; if it is missing, the player says so.
 
 ## Settings
 
